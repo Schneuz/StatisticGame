@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: stock-trader-simulation
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: serve -s build
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0 
