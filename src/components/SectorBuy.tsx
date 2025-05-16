@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,39 +13,65 @@ import {
 } from '@mui/material';
 import { Sector } from '../data/sectors';
 import CloseIcon from '@mui/icons-material/Close';
+import { useGame } from '../contexts/GameContext';
 
-interface SectorPurchaseProps {
-  sector: Sector | null;
-  availableCapital: number;
-  onClose: () => void;
+export interface SectorPurchaseProps {
   onPurchase: (sector: Sector, quantity: number) => void;
+  selectedSector: Sector | null;
+  onSectorSelect: (sector: Sector | null) => void;
 }
 
 export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
-  sector,
-  availableCapital,
-  onClose,
-  onPurchase
+  onPurchase,
+  selectedSector,
+  onSectorSelect
 }) => {
-  const [quantity, setQuantity] = useState(0);
-
-  if (!sector) return null;
-
-  const maxQuantity = Math.floor(availableCapital / sector.currentPrice);
-  const totalCost = quantity * sector.currentPrice;
+  const { state } = useGame();
+  const [quantity, setQuantity] = useState(1);
+  
+  // Reset quantity when selected sector changes
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedSector]);
+  
+  if (!selectedSector) return null;
+  
+  const maxQuantity = Math.floor(state.capital / selectedSector.currentPrice);
+  const totalCost = quantity * selectedSector.currentPrice;
 
   const handleSliderChange = (_: any, value: number | number[]) => {
     setQuantity(typeof value === 'number' ? value : value[0]);
   };
 
-  const handleBuyMax = () => {
+  const handleIncrement = () => {
+    if (quantity < maxQuantity) {
+      setQuantity(quantity + 1);
+    }
+  };
+
+  const handleDecrement = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
+  };
+
+  const handleMax = () => {
     setQuantity(maxQuantity);
+  };
+
+  const handleSectorClick = (sector: Sector) => {
+    // Toggle selection
+    if (selectedSector && selectedSector.name === sector.name) {
+      onSectorSelect(null);
+    } else {
+      onSectorSelect(sector);
+    }
   };
 
   return (
     <Dialog 
-      open={!!sector} 
-      onClose={onClose}
+      open={!!selectedSector} 
+      onClose={() => onSectorSelect(null)}
       PaperProps={{
         sx: {
           backgroundColor: '#23272f',
@@ -86,10 +112,10 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
             width: '100%'
           }}
         >
-          Buy Sector: {sector.name}
+          Buy Sector: {selectedSector.name}
         </Typography>
         <IconButton 
-          onClick={onClose}
+          onClick={() => onSectorSelect(null)}
           sx={{ 
             color: 'white',
             position: 'absolute',
@@ -108,10 +134,10 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
       </DialogTitle>
       <DialogContent sx={{ p: 2, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
         <Typography variant="body1" sx={{ mb: 2, mt: 2 }}>
-          Current Price: ${sector.currentPrice.toFixed(2)}
+          Current Price: ${selectedSector.currentPrice.toFixed(2)}
         </Typography>
         <Typography variant="body1" sx={{ mb: 2 }}>
-          Available Capital: ${availableCapital.toFixed(2)}
+          Available Capital: ${state.capital.toFixed(2)}
         </Typography>
 
         <Typography variant="body1" sx={{ mb: 1 }}>
@@ -121,7 +147,7 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Button
             variant="outlined"
-            onClick={handleBuyMax}
+            onClick={handleMax}
             sx={{
               borderColor: 'white',
               color: 'white',
@@ -200,7 +226,7 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
       </DialogContent>
       <DialogActions>
         <Button 
-          onClick={onClose}
+          onClick={() => onSectorSelect(null)}
           fullWidth
           sx={{ 
             color: '#fff',
@@ -218,10 +244,10 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
           CANCEL
         </Button>
         <Button
-          onClick={() => onPurchase(sector, quantity)}
+          onClick={() => onPurchase(selectedSector, quantity)}
           variant="contained"
           fullWidth
-          disabled={quantity <= 0 || totalCost > availableCapital}
+          disabled={quantity <= 0 || totalCost > state.capital}
           sx={{
             backgroundColor: '#2196f3',
             color: '#fff',

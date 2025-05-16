@@ -21,6 +21,8 @@ import { useGame } from '../contexts/GameContext';
 import { ActionTracker, PlayerAction, ScenarioPerformance } from '../models/ActionTracker';
 import { getSectorPerformanceGroup } from '../models/SectorModel';
 import { PerformanceGroup } from '../models/DataGenerationModel';
+import { validateMetrics, validateTestForMetrics, MetricType } from '../utils/MetricsValidator';
+import { log } from '../utils/logging';
 
 interface PlayerActionAnalysisProps {
   open: boolean;
@@ -39,31 +41,21 @@ const getPerformanceChange = (previousGroup: PerformanceGroup, currentGroup: Per
 };
 
 // Helper to get performance feedback text based on profit percentage
-const getPerformanceFeedback = (profitPercentage: number): { text: string; color: string } => {
-  if (profitPercentage >= 5) {
+const getPerformanceFeedback = (profit: number): { text: string; color: string } => {
+  if (profit > 1000) {
     return {
-      text: "Outstanding performance! Your investment strategy is yielding exceptional results.",
-      color: '#43e294' // bright green
+      text: "Positive results. Nice one!",
+      color: '#43e294'
     };
-  } else if (profitPercentage >= 2) {
+  } else if (profit < -1000) {
     return {
-      text: "Good job! Your investments are performing well in this market.",
-      color: '#7ce243' // light green
-    };
-  } else if (profitPercentage >= 0) {
-    return {
-      text: "Modest gains. You're on the right track, but consider optimizing your strategy.",
-      color: '#e2c943' // yellow
-    };
-  } else if (profitPercentage >= -3) {
-    return {
-      text: "Slight loss. The market proved challenging, but you limited your exposure well.",
-      color: '#e29943' // orange
+      text: "Negative results. Try to make decisions according to the statistical test.",
+      color: '#e24343'
     };
   } else {
     return {
-      text: "Significant losses. Consider revising your investment approach for the next scenario.",
-      color: '#e24343' // red
+      text: "Neutral performance. Your result is close to break-even.",
+      color: '#e2c943'
     };
   }
 };
@@ -124,6 +116,22 @@ const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): R
         </Box>
       );
     case 'metric_selection':
+      // Prüfe, ob die gewählten Metriken mit den erwarteten übereinstimmen
+      let metricsAreCorrect = true;
+      let expectedMetrics: string[] = [];
+      const metrics = action.details.metrics;
+      // Versuche, die erwarteten Metriken aus der Hypothese zu extrahieren
+      if (expectedSectors.length > 0) {
+        // Beispiel: Wenn in der Hypothese "mean return" und "median return" vorkommen, dann sind das die erwarteten Metriken
+        const hypothesis = expectedSectors.join(' ');
+        if (hypothesis.toLowerCase().includes('mean return') && hypothesis.toLowerCase().includes('median return')) {
+          expectedMetrics = ['Mean Return', 'Median Return'];
+        } else if (hypothesis.toLowerCase().includes('mean return')) {
+          expectedMetrics = ['Mean Return'];
+        } else if (hypothesis.toLowerCase().includes('median return')) {
+          expectedMetrics = ['Median Return'];
+        }
+      }
       return (
         <Box>
           <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
@@ -145,9 +153,61 @@ const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): R
           <Typography variant="body2" sx={{ color: '#aaa', mt: 0.5 }}>
             Data type: {action.details.dataType || 'Unknown'}
           </Typography>
+          {!action.details.isCorrect && action.details.errorMessage && (
+            <Paper sx={{ 
+              mt: 1,
+              p: 1,
+              backgroundColor: 'rgba(226, 67, 67, 0.15)',
+              borderLeft: '3px solid #e24343',
+              borderRadius: 1
+            }}>
+              <Typography variant="body2" sx={{ color: '#e24343', fontWeight: 'bold' }}>
+                {action.details.errorMessage || ''}
+              </Typography>
+            </Paper>
+          )}
         </Box>
       );
-    case 'test_execution':
+    case 'test_execution': {
+      let testHint = '';
+      const metricsTest = action.details.metrics;
+      const testType = (action.details.testType || '').toLowerCase();
+      const numericalMetrics = ['Mean Return', 'Median Return', 'Mean Gain', 'Mean Loss'];
+      const categoricalMetrics = ['Positive Return Days', 'Negative Return Days', 'High Volatility Days'];
+      let isCorrectTest = true;
+      if (metricsTest && metricsTest.length === 2) {
+        const isFirstNumerical = numericalMetrics.includes(metricsTest[0]);
+        const isSecondNumerical = numericalMetrics.includes(metricsTest[1]);
+        const isFirstCategorical = categoricalMetrics.includes(metricsTest[0]);
+        const isSecondCategorical = categoricalMetrics.includes(metricsTest[1]);
+        if (isFirstNumerical && isSecondNumerical) {
+          testHint = 'You chose numerical data, use T-Test.';
+          if (testType !== 't-test') {
+            isCorrectTest = false;
+          }
+        } else if (isFirstCategorical && isSecondCategorical) {
+          testHint = 'You chose categorical data, use Chi-Square test.';
+          if (testType !== 'chi-square') {
+            isCorrectTest = false;
+          }
+        } else {
+          // Mixed types: immer Fehler, egal welcher Test
+          testHint = "Use the same metrics, and don't mix up categorical and numerical metrics.";
+          isCorrectTest = false;
+        }
+      } else if (metricsTest && metricsTest.length === 1) {
+        // Nur eine Metrik gewählt: Prüfe, ob Testtyp zum Typ passt
+        const isNumerical = numericalMetrics.includes(metricsTest[0]);
+        const isCategorical = categoricalMetrics.includes(metricsTest[0]);
+        if (isNumerical && testType !== 't-test') {
+          testHint = 'Numerical metric selected, use T-Test.';
+          isCorrectTest = false;
+        } else if (isCategorical && testType !== 'chi-square') {
+          testHint = 'Categorical metric selected, use Chi-Square test.';
+          isCorrectTest = false;
+        }
+      }
+      action.details.isCorrect = isCorrectTest;
       return (
         <Box>
           <Typography variant="body2" sx={{ color: '#aaa' }}>
@@ -156,8 +216,14 @@ const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): R
           <Typography variant="body2" sx={{ color: '#aaa', mt: 0.5 }}>
             Data type: {action.details.dataType || 'Unknown'}
           </Typography>
+          {testHint && (
+            <Paper sx={{ mt: 1, p: 1, backgroundColor: isCorrectTest ? 'rgba(34, 50, 60, 0.15)' : 'rgba(226, 67, 67, 0.15)', borderLeft: isCorrectTest ? '3px solid #2196f3' : '3px solid #e24343', borderRadius: 1 }}>
+              <Typography variant="body2" sx={{ color: isCorrectTest ? '#2196f3' : '#e24343', fontWeight: 'bold' }}>{testHint}</Typography>
+            </Paper>
+          )}
         </Box>
       );
+    }
     case 'stock_purchase':
       return (
         <Box>
@@ -259,38 +325,78 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
   }, [currentPortfolioValue, previousPortfolioValue]);
   
   // Memoize feedback to prevent re-calculation
-  const feedback = useMemo(() => getPerformanceFeedback(profitLossPercentage), [profitLossPercentage]);
+  const feedback = useMemo(() => getPerformanceFeedback(profitLoss), [profitLoss]);
 
   // Prepare performance data when component mounts or key props change
   useEffect(() => {
     if (open) {
-      console.log('Opening PlayerActionAnalysis for scenario:', situationIndex);
+      log('Opening PlayerActionAnalysis for scenario:', situationIndex);
       
-      // Debug: Check if ActionTracker has any actions at all
-      const allTrackerActions = ActionTracker.getActions();
-      console.log('ActionTracker total actions:', allTrackerActions.length);
-      
-      // WICHTIG: Stelle sicher, dass wir die aktuelle Szenario-ID korrekt setzen
-      // Der Fehler kann sein, dass die ActionTracker-Klasse die ID nicht korrekt verfolgt
+      // Stelle sicher, dass wir die aktuelle Szenario-ID korrekt setzen
       ActionTracker.setCurrentScenario(situationIndex);
       
       // Hole alle Aktionen und filtere nach der aktuellen Szenario-ID
       const allActions = ActionTracker.getActions();
-      console.log('All actions from tracker:', allActions.length, 'actions');
-      
-      // Debug: Log alle Aktionen mit ihren scenarioId Werten
-      allActions.forEach((action, index) => {
-        console.log(`Action ${index + 1}: type=${action.type}, scenarioId=${action.scenarioId}`);
-      });
       
       // Filtere Aktionen für das aktuelle Szenario
-      const currentScenarioActions = allActions.filter(a => a.scenarioId === situationIndex);
-      console.log('Current scenario actions:', currentScenarioActions.length, 'actions for scenario', situationIndex);
+      let currentScenarioActions = allActions.filter(a => a.scenarioId === situationIndex);
+      log('Current scenario actions:', currentScenarioActions.length);
+
+      // Validierung für test_execution-Aktionen
+      currentScenarioActions = currentScenarioActions.map(action => {
+        if (action.type === 'test_execution') {
+          const metricsTest = action.details.metrics;
+          const testType = (action.details.testType || '').toLowerCase();
+          
+          if (metricsTest && metricsTest.length > 0) {
+            // Validiere Metriken
+            const metricsValidation = validateMetrics(metricsTest);
+            // Validiere Test für diese Metriken
+            const testValidation = validateTestForMetrics(testType, metricsValidation.metricType);
+            
+            return { 
+              ...action, 
+              details: { 
+                ...action.details, 
+                isCorrect: testValidation.isValid,
+                errorMessage: testValidation.errorMessage 
+              } 
+            };
+          }
+        }
+        return action;
+      });
+      
+      // Validierung für metric_selection-Aktionen
+      currentScenarioActions = currentScenarioActions.map(action => {
+        if (action.type === 'metric_selection') {
+          const metrics = action.details.metrics;
+          
+          if (metrics && metrics.length > 0) {
+            // Verwende zentrale Validierungsfunktion
+            const validationResult = validateMetrics(metrics);
+            
+            return { 
+              ...action, 
+              details: { 
+                ...action.details, 
+                isCorrect: validationResult.isValid,
+                errorMessage: validationResult.errorMessage 
+              } 
+            };
+          }
+        }
+        return action;
+      });
+      
+      // Decision Summary nur für das aktuelle Szenario berechnen
+      const correctDecisions = currentScenarioActions.filter(a => a.details.isCorrect).length;
+      const incorrectDecisions = currentScenarioActions.filter(a => a.details.isCorrect === false).length;
       
       // Für das erste Level (situationIndex=0) müssen wir möglicherweise Daten hinzufügen
       // Wenn keine Aktionen vorhanden sind, erstelle Dummy-Aktionen für die Anzeige
       if (currentScenarioActions.length === 0 && situationIndex === 0) {
-        console.log('No actions found for first scenario, creating dummy actions');
+        log('No actions found for first scenario, creating dummy actions');
         
         // Füge eine Hypothese hinzu, wenn keine vorhanden ist
         const dummyHypothesis = "The mean return of Food & Beverages is higher than the mean return of Transport & Logistics";
@@ -314,31 +420,7 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
           };
           ActionTracker.addAction('stock_purchase', stockPurchaseAction);
         }
-        
-        console.log('Added dummy actions for first scenario');
       }
-      
-      // Check if we have a stock purchase action for any scenario
-      const hasStockPurchase = currentScenarioActions.some(a => a.type === 'stock_purchase');
-      
-      // Wenn kein Kaufauftrag gefunden wird, aber Portfolio-Elemente vorhanden sind,
-      // füge eine Stock-Purchase-Aktion hinzu, basierend auf dem Portfolio
-      if (!hasStockPurchase && portfolio.length > 0) {
-        const stockPurchaseAction = {
-          type: 'stock_purchase' as const,
-          details: {
-            purchasedSector: portfolio[0].sector.name,
-            quantity: portfolio[0].quantity,
-            isCorrect: true
-          }
-        };
-        ActionTracker.addAction('stock_purchase', stockPurchaseAction.details);
-        console.log('Added stock purchase from portfolio:', stockPurchaseAction);
-      }
-      
-      // Hole die aktualisierten Aktionen nach dem Hinzufügen von Dummy-Daten
-      const updatedActions = ActionTracker.getActions().filter(a => a.scenarioId === situationIndex);
-      console.log('Updated actions for scenario:', updatedActions.length);
       
       // Berechne die Performance-Daten
       const startingValue = previousPortfolioValue;
@@ -395,29 +477,19 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
         endingValue,
         profit,
         profitPercentage,
-        actions: updatedActions,
-        correctDecisions: actionSummary.correct,
-        incorrectDecisions: actionSummary.incorrect,
+        actions: currentScenarioActions, // Nur aktuelle Szenario-Aktionen
+        correctDecisions,
+        incorrectDecisions,
         sectorPerformance: sectorPerformanceData
       });
       
-      console.log('Player Action Analysis - Performance Data:', {
-        scenarioIndex: situationIndex,
-        scenarioDescription,
-        startingValue,
-        endingValue,
-        profit,
-        profitPercentage,
-        actions: updatedActions.length,
-        correctDecisions: actionSummary.correct,
-        incorrectDecisions: actionSummary.incorrect
-      });
+      log('Performance Data prepared for scenario:', situationIndex);
     }
   }, [open, situationIndex, portfolio, capital, previousPortfolioValue, currentPrices, marketSituation]);
   
   // Handle closing the popup - memoize this function
   const handleClose = useCallback(() => {
-    console.log('Closing player action analysis popup and advancing to next scenario');
+    log('Closing player action analysis popup and advancing to next scenario');
     
     // Schließe alle offenen Popups (globales Window-Event auslösen)
     const closePopupsEvent = new CustomEvent('closeAllPopups');
@@ -434,7 +506,6 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
     
     // Aktionen für das aktuelle Szenario löschen
     ActionTracker.clearScenarioActions(situationIndex);
-    console.log('ActionTracker: Aktionen für Szenario', situationIndex, 'gelöscht');
     
     // Zum nächsten Szenario wechseln
     dispatch({ 
@@ -446,17 +517,11 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
     
     // Schließe alle offenen Popups
     onClose();
-    
-    console.log('Sold all sectors, and advanced to next scenario');
   }, [portfolio, dispatch, onClose, situationIndex]);
   
   // Memoize renderActions to prevent function recreation on every render
   const renderActions = useCallback(() => {
     if (!performanceData?.actions || performanceData.actions.length === 0) {
-      // Single render for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('No actions available to render in performanceData');
-      }
       return (
         <Box sx={{ p: 2, color: 'text.secondary' }}>
           No actions recorded for this scenario.
@@ -464,21 +529,8 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
       );
     }
 
-    // Debug only in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('All actions in performanceData:', performanceData.actions.length);
-      performanceData.actions.forEach((action, i) => {
-        console.log(`Action ${i+1} in performanceData:`, action.type, 'for scenario', action.scenarioId);
-      });
-    }
-
-    // Hier ist die kritische Zeile: Filtere nach scenarioId!
+    // Filtere Aktionen für das aktuelle Szenario
     const currentScenarioActions = performanceData.actions.filter(a => a.scenarioId === situationIndex);
-    
-    // Debug only in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`Filtered actions for scenario ${situationIndex}:`, currentScenarioActions.length);
-    }
 
     if (currentScenarioActions.length === 0) {
       return (
@@ -503,7 +555,10 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
           // Sortiere die Aktionen nach Typ in einer festen Reihenfolge
           const childrenOrder = ['sector_selection', 'metric_selection', 'test_execution', 'stock_purchase'];
           const children = childrenOrder
-            .map(type => currentScenarioActions.filter(a => a.type === type))
+            .map(type => {
+              const actionsOfType = currentScenarioActions.filter(a => a.type === type);
+              return actionsOfType.length > 0 ? [actionsOfType[actionsOfType.length - 1]] : [];
+            })
             .flat() as PlayerAction[];
 
           // Extrahiere Sektoren aus der Hypothese, falls vorhanden
@@ -583,13 +638,6 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
       </List>
     );
   }, [performanceData, situationIndex]);
-  
-  // Debug only in non-production environments and once per render, not repetitively
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Rendering actions in PlayerActionAnalysis dialog, current scenario:', situationIndex);
-    }
-  }, [situationIndex]);
 
   return (
     <Dialog
@@ -747,9 +795,9 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
               {/* Verwende renderActions Funktion mit zusätzlichem Log für Debugging */}
               {(() => {
                 // Log für Debugging
-                console.log('Rendering actions in PlayerActionAnalysis dialog, current scenario:', situationIndex);
+                log('Rendering actions in PlayerActionAnalysis dialog, current scenario:', situationIndex);
                 if (performanceData?.actions) {
-                  console.log(
+                  log(
                     'All actions:', performanceData.actions.length, 
                     'Current scenario actions:', performanceData.actions.filter(a => a.scenarioId === situationIndex).length
                   );
@@ -760,21 +808,21 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
                   
                   if (currentScenarioHypothesis && currentScenarioHypothesis.details.hypothesis) {
                     const expectedSectors = extractSectorsFromHypothesis(currentScenarioHypothesis.details.hypothesis);
-                    console.log('Hypothesis sectors:', expectedSectors.join(' '));
+                    log('Hypothesis sectors:', expectedSectors.join(' '));
                     
                     // Überprüfe Sektorauswahl auf Hypothese-Match
                     const sectorSelection = performanceData.actions
                       .find(a => a.type === 'sector_selection' && a.scenarioId === situationIndex);
                     
                     if (sectorSelection && sectorSelection.details.sectors) {
-                      console.log('Selected sectors:', sectorSelection.details.sectors);
+                      log('Selected sectors:', sectorSelection.details.sectors);
                       
                       // Normalisiere die Hypothese-Sektoren zur besseren Vergleichbarkeit
                       const normalizedHypothesisSectors = expectedSectors.map(s => s.toLowerCase());
                       const normalizedSelectedSectors = sectorSelection.details.sectors.map(s => s.toLowerCase());
                       
-                      console.log('Normalized hypothesis sectors:', normalizedHypothesisSectors);
-                      console.log('Normalized selected sectors:', normalizedSelectedSectors);
+                      log('Normalized hypothesis sectors:', normalizedHypothesisSectors);
+                      log('Normalized selected sectors:', normalizedSelectedSectors);
                       
                       // Prüfe, ob die Sektoren übereinstimmen
                       const sectorsMatch = 
@@ -785,7 +833,7 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
                           )
                         );
                       
-                      console.log('Sectors match?', sectorsMatch);
+                      log('Sectors match?', sectorsMatch);
                     }
                   }
                 }

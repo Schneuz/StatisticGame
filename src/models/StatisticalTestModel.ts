@@ -1,6 +1,8 @@
 // StatisticalTestModel.ts
 // This model handles statistical tests for hypothesis testing
 
+import { log } from '../utils/logging';
+
 /**
  * Test result interface
  */
@@ -102,8 +104,8 @@ export function runAndLogStatisticalTest(
   const cacheKey = getTestCacheKey(testType, data1, data2);
   if (testResultCache[cacheKey]) {
     const cachedResult = testResultCache[cacheKey];
-    console.log(`${testType} for hypothesis: "${hypothesis}" (cached)`);
-    console.log(`${testType} Results:`, { 
+    log(`${testType} for hypothesis: "${hypothesis}" (cached)`);
+    log(`${testType} Results:`, { 
       pValue: cachedResult.pValue, 
       statistic: cachedResult.statistic, 
       significant: cachedResult.significant,
@@ -120,8 +122,8 @@ export function runAndLogStatisticalTest(
   if (!isAppropriate) {
     // Generate plausible but inconclusive results
     result = generatePlausibleInconclusiveResult(testType);
-    console.log(`${testType} for hypothesis: "${hypothesis}" (inappropriate test selection)`);
-    console.log(`${testType} Results (inconclusive):`, { 
+    log(`${testType} for hypothesis: "${hypothesis}" (inappropriate test selection)`);
+    log(`${testType} Results (inconclusive):`, { 
       pValue: result.pValue, 
       statistic: result.statistic, 
       significant: result.significant,
@@ -138,8 +140,8 @@ export function runAndLogStatisticalTest(
           significant: pValue < threshold,
           testType: 'T-Test'
         };
-        console.log(`T-Test for hypothesis: "${hypothesis}"`);
-        console.log('T-Test Results:', { pValue, statistic, significant: pValue < threshold });
+        log(`T-Test for hypothesis: "${hypothesis}"`);
+        log('T-Test Results:', { pValue, statistic, significant: pValue < threshold });
         break;
       }
       
@@ -154,8 +156,8 @@ export function runAndLogStatisticalTest(
           significant: pValue < threshold,
           testType: 'Chi-Square'
         };
-        console.log(`Chi-Square Test for hypothesis: "${hypothesis}"`);
-        console.log('Chi-Square Test Results:', { pValue, statistic, significant: pValue < threshold });
+        log(`Chi-Square Test for hypothesis: "${hypothesis}"`);
+        log('Chi-Square Test Results:', { pValue, statistic, significant: pValue < threshold });
         break;
       }
       

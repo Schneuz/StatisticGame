@@ -26,6 +26,7 @@ import { SectorSell } from './SectorSell';
 import { runAndLogStatisticalTest } from '../models/StatisticalTestModel';
 import { normal, binomial, generateCategoricalData, getMetricParameters } from '../models/DataGenerationModel';
 import CloseIcon from '@mui/icons-material/Close';
+import { ActionTracker } from '../models/ActionTracker';
 
 interface PurchaseRecommendationDialogProps {
   open: boolean;
@@ -114,6 +115,12 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
 
   // Handle purchase from dialog
   const handlePurchase = (sector: Sector, quantity: number) => {
+    // Track the stock purchase action
+    ActionTracker.addAction('stock_purchase', {
+      purchasedSector: sector.name,
+      quantity: quantity,
+      isCorrect: true // Annahme: alle Käufe sind "korrekt"
+    });
     dispatch({ type: 'PURCHASE_SECTOR', sector, quantity });
     setPurchaseDialogOpen(false);
   };
@@ -538,9 +545,11 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
       {/* Purchase Dialog */}
       {purchaseDialogOpen && selectedSector && (
         <SectorPurchase
-          sector={selectedSector}
-          availableCapital={state.capital}
-          onClose={() => setPurchaseDialogOpen(false)}
+          selectedSector={selectedSector}
+          onSectorSelect={(sector) => {
+            setSelectedSector(sector);
+            if (!sector) setPurchaseDialogOpen(false);
+          }}
           onPurchase={handlePurchase}
         />
       )}

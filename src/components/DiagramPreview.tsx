@@ -507,9 +507,9 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
                 <>
                   <Typography gutterBottom sx={TITLE_STYLE}>
                     {metricX.name} vs {metricY.name}
-                    {metricX && metricY && (metricX.type !== 'numerical' || metricY.type !== 'numerical') && (
+                    {metricX && metricY && metricX.type !== metricY.type && (
                       <Box component="span" sx={{ color: '#e29943', fontSize: '0.8em', fontStyle: 'italic', display: 'block' }}>
-                        Note: For optimal numerical visualization, both metrics should be numerical type
+                        Note: For optimal visualization, both metrics should be the same type
                       </Box>
                     )}
                   </Typography>
@@ -576,9 +576,9 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
                 <>
                   <Typography gutterBottom sx={TITLE_STYLE}>
                     {metricX.name} vs {metricY.name} (Grouped Bar Chart)
-                    {metricX && metricY && (metricX.type !== 'categorical' || metricY.type !== 'categorical') && (
+                    {metricX && metricY && metricX.type !== metricY.type && (
                       <Box component="span" sx={{ color: '#e29943', fontSize: '0.8em', fontStyle: 'italic', display: 'block' }}>
-                        Note: For optimal categorical visualization, both metrics should be categorical type
+                        Note: For optimal visualization, both metrics should be the same type
                       </Box>
                     )}
                   </Typography>

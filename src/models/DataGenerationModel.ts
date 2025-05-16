@@ -1,6 +1,8 @@
 // DataGenerationModel.ts
 // This model centralizes all data generation logic for market analysis
 
+import { log } from '../utils/logging';
+
 /**
  * Performance groups for sectors in market situations
  */
@@ -34,22 +36,45 @@ export function setCurrentMarketSituationIndex(index: number): number {
   return index;
 }
 
+// Cache für Datenwerte nach Parameter-Sets
+const dataCache: { [key: string]: number[] } = {};
+
 /**
- * Generate normally distributed random data
- * @param mean The mean of the distribution
- * @param stdDev The standard deviation
- * @param count The number of data points to generate
- * @returns Array of normally distributed values
+ * Generiert einen Cache-Schlüssel für das Parameter-Set
+ */
+function getCacheKey(mean: number, stdDev: number, sampleSize: number): string {
+  return `${mean.toFixed(2)}_${stdDev.toFixed(2)}_${sampleSize}`;
+}
+
+/**
+ * Generates values using a normal distribution
+ * 
+ * @param mean Mean of the distribution
+ * @param stdDev Standard deviation
+ * @param count Number of samples to generate
+ * @returns Array of values following a normal distribution
  */
 export function normal(mean: number, stdDev: number, count: number): number[] {
-  const result = [];
+  // Check cache first
+  const cacheKey = getCacheKey(mean, stdDev, count);
+  if (dataCache[cacheKey]) {
+    log(`Using cached data for normal distribution with mean=${mean}, stdDev=${stdDev}, count=${count}`);
+    return [...dataCache[cacheKey]];
+  }
+
+  // Generate new data
+  const result: number[] = [];
   for (let i = 0; i < count; i++) {
-    // Box-Muller transform for normal distribution
+    // Box-Muller transform
     const u1 = Math.random();
     const u2 = Math.random();
     const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-    result.push(z0 * stdDev + mean);
+    const value = mean + z0 * stdDev;
+    result.push(Number(value.toFixed(2)));
   }
+
+  // Cache for future use
+  dataCache[cacheKey] = [...result];
   return result;
 }
 

@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Container } from '@mui/material';
 import { useGame } from './contexts/GameContext';
 import { SectorPurchase } from './components/SectorBuy';
 import { Sector } from './data/sectors';
 import { HeaderWithScenario } from './components/HeaderWithScenario';
 import { StickyStartPauseButton } from './components/StickyStartPauseButton';
-import { TestSelection } from './components/TestSelection';
 import { PlayerActionAnalysis } from './components/PlayerActionAnalysis';
 import { ActionTracker } from './models/ActionTracker';
+import { StartupVideoPopup } from './components/StartupVideoPopup';
 
 function App() {
   const { state, dispatch } = useGame();
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
+  const [showStartupVideo, setShowStartupVideo] = useState(true);
 
   const handlePurchase = (sector: Sector, quantity: number) => {
     // Track the stock purchase action
@@ -30,30 +31,37 @@ function App() {
     dispatch({ type: 'CLOSE_SCENARIO_COMPLETION_POPUP' });
   };
 
+  // Nur beim allerersten Laden anzeigen
+  useEffect(() => {
+    setShowStartupVideo(true);
+  }, []);
+
   return (
     <Container maxWidth="lg">
+      <StartupVideoPopup open={showStartupVideo} onClose={() => setShowStartupVideo(false)} />
+      
+      {/* Sticky bar placed at the top */}
       <StickyStartPauseButton />
-      <HeaderWithScenario />
-      <Box sx={{ my: 4 }}>
-        {/* Statistical Tests Section */}
-        <Box sx={{ mb: 4 }}>
-          <TestSelection />
-        </Box>
-
-        <SectorPurchase
-          sector={selectedSector}
-          availableCapital={state.capital}
-          onClose={() => setSelectedSector(null)}
+      
+      <Box sx={{ mt: 2, mb: 4 }}>
+        <HeaderWithScenario />
+      </Box>
+      
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <SectorPurchase 
+          onSectorSelect={setSelectedSector} 
+          selectedSector={selectedSector}
           onPurchase={handlePurchase}
         />
       </Box>
-
-      {/* Player Action Analysis Popup */}
-      <PlayerActionAnalysis
-        open={state.showScenarioCompletionPopup}
-        onClose={handleCloseScenarioAnalysis}
-        situationIndex={state.currentSituationIndex}
-      />
+      
+      {state.showScenarioCompletionPopup && (
+        <PlayerActionAnalysis
+          open={state.showScenarioCompletionPopup}
+          onClose={handleCloseScenarioAnalysis}
+          situationIndex={state.currentSituationIndex}
+        />
+      )}
     </Container>
   );
 }

@@ -3,6 +3,7 @@ import { Sector, sectors } from '../data/sectors';
 import { PerformanceGroup } from '../models/DataGenerationModel';
 import { getSectorPerformanceGroup } from '../models/SectorModel';
 import { ActionTracker } from '../models/ActionTracker';
+import { log } from '../utils/logging';
 
 export interface PortfolioItem {
   sector: Sector;
@@ -521,26 +522,59 @@ const GameContext = createContext<{
   dispatch: React.Dispatch<GameAction>;
 } | null>(null);
 
+/**
+ * Generiert einen neuen Preis basierend auf der Performance-Gruppe
+ */
 function generateNewPrice(currentPrice: number, performanceGroup: PerformanceGroup): number {
-  // Different random ranges based on performance group
-  let minChange, maxChange;
+  // Zufällige Preisänderung basierend auf Performance-Gruppe
+  let change = 0;
   switch (performanceGroup) {
     case 'positive':
-      minChange = 0.02;  // +2% to +8%
-      maxChange = 0.08;
+      change = Math.random() * 0.05; // 0-5% positiv
+      break;
+    case 'neutral':
+      change = (Math.random() * 0.04) - 0.02; // -2% bis +2%
       break;
     case 'negative':
-      minChange = -0.08; // -8% to -2%
-      maxChange = -0.02;
+      change = -Math.random() * 0.05; // 0-5% negativ
       break;
-    default: // neutral
-      minChange = -0.03; // -3% to +3%
-      maxChange = 0.03;
   }
+  
+  // Neuer Preis mit Änderung, auf 2 Dezimalstellen gerundet
+  return Number((currentPrice * (1 + change)).toFixed(2));
+}
 
-  const changePercent = minChange + Math.random() * (maxChange - minChange);
-  const newPrice = currentPrice * (1 + changePercent);
-  return Math.round(newPrice * 100) / 100;
+/**
+ * Aktualisiert die Preise für alle Sektoren
+ */
+function updatePrices(state: GameState): { 
+  newPrices: { [sectorName: string]: number }, 
+  newPriceHistory: typeof state.priceHistory 
+} {
+  // Update prices for all sectors
+  const newPrices = { ...state.currentPrices };
+  const newPriceHistory = { ...state.priceHistory };
+  
+  sectors.forEach(sector => {
+    const performanceGroup = getSectorPerformanceGroup(sector.name, state.currentSituationIndex);
+    newPrices[sector.name] = generateNewPrice(sector.currentPrice, performanceGroup);
+    sector.currentPrice = newPrices[sector.name];
+    
+    // Update price history
+    if (!newPriceHistory[sector.name]) {
+      newPriceHistory[sector.name] = { 
+        prices: [], 
+        timestamp: Date.now() 
+      };
+    }
+    
+    newPriceHistory[sector.name].prices.push(newPrices[sector.name]);
+    if (newPriceHistory[sector.name].prices.length > state.historyLimit) {
+      newPriceHistory[sector.name].prices.shift();
+    }
+  });
+  
+  return { newPrices, newPriceHistory };
 }
 
 // Optimierte Hilfsfunktionen für Statistikberechnungen
@@ -664,18 +698,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'UPDATE_PRICES': {
-      // Optimiere Preis-Updates durch Vermeidung unnötiger Objektkopien
-      const updatedPortfolio = state.portfolio.map(item => ({
-        ...item,
-        sector: {
-          ...item.sector,
-          currentPrice: Number((state.currentPrices[item.sector.name] || item.sector.currentPrice).toFixed(2))
-        }
-      }));
-
+      // Verwende die extrahierte Funktion für Preisaktualisierungen
+      const { newPrices, newPriceHistory } = updatePrices(state);
+      
       return {
         ...state,
-        portfolio: updatedPortfolio
+        currentPrices: newPrices,
+        priceHistory: newPriceHistory
       };
     }
 
@@ -695,28 +724,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         (Date.now() - state.lastAutoUpdate) >= 1000;
       
       if (shouldUpdatePrices) {
-        // Update prices for all sectors
-        const newPrices = { ...state.currentPrices };
-        sectors.forEach(sector => {
-          const performanceGroup = getSectorPerformanceGroup(sector.name, state.currentSituationIndex);
-          newPrices[sector.name] = generateNewPrice(sector.currentPrice, performanceGroup);
-          sector.currentPrice = newPrices[sector.name];
-        });
-        
-        // Update price history
-        const newPriceHistory = { ...state.priceHistory };
-        sectors.forEach(sector => {
-          if (!newPriceHistory[sector.name]) {
-            newPriceHistory[sector.name] = { 
-              prices: [], 
-              timestamp: Date.now() 
-            };
-          }
-          newPriceHistory[sector.name].prices.push(newPrices[sector.name]);
-          if (newPriceHistory[sector.name].prices.length > state.historyLimit) {
-            newPriceHistory[sector.name].prices.shift();
-          }
-        });
+        // Verwende die extrahierte Funktion für Preisaktualisierungen
+        const { newPrices, newPriceHistory } = updatePrices(state);
         
         return {
           ...state,
@@ -786,8 +795,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CLOSE_SCENARIO_COMPLETION_POPUP': {
       const totalValue = calculateTotalPortfolioValue(state.portfolio, state.capital, state.currentPrices);
       
-      console.log('Closing scenario popup. Detailed calculation:');
-      console.log('Setting previousCapital for next scenario to:', totalValue);
+      log('Closing scenario popup. Detailed calculation:');
+      log('Setting previousCapital for next scenario to:', totalValue);
       
       return {
         ...state,
@@ -806,12 +815,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const newMarketSituation = marketSituations[newSituationIndex];
       
       // Füge Log hinzu, um den Start eines neuen Szenarios anzuzeigen
-      console.log(`🎮 NEUES SZENARIO GESTARTET: Level ${newSituationIndex + 1}`);
-      console.log(`📝 Beschreibung: ${newMarketSituation.description}`);
+      log(`🎮 NEUES SZENARIO GESTARTET: Level ${newSituationIndex + 1}`);
+      log(`📝 Beschreibung: ${newMarketSituation.description}`);
       
       // Aktualisiere den ActionTracker mit der neuen Szenario-ID
       ActionTracker.setCurrentScenario(newSituationIndex);
-      console.log(`ActionTracker: Szenario-ID auf ${newSituationIndex} gesetzt`);
+      log(`ActionTracker: Szenario-ID auf ${newSituationIndex} gesetzt`);
       
       return {
         ...state,
@@ -828,7 +837,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SHOW_SCENARIO_COMPLETION_POPUP':
-      console.log(`🏁 SZENARIO BEENDET: Level ${state.currentSituationIndex + 1}`);
+      log(`🏁 SZENARIO BEENDET: Level ${state.currentSituationIndex + 1}`);
       return {
         ...state,
         showScenarioCompletionPopup: true,
@@ -845,12 +854,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // Beim ersten Laden des Spiels anzeigen, dass Level 1 gestartet wurde
   useEffect(() => {
-    console.log(`🎮 SPIEL GESTARTET: Level 1`);
-    console.log(`📝 Beschreibung: ${marketSituations[0].description}`);
+    log(`🎮 SPIEL GESTARTET: Level 1`);
+    log(`📝 Beschreibung: ${marketSituations[0].description}`);
     
     // Setze die Szenario-ID im ActionTracker auf 0 (Level 1)
     ActionTracker.setCurrentScenario(0);
-    console.log(`ActionTracker: Szenario-ID auf 0 gesetzt (Level 1)`);
+    log(`ActionTracker: Szenario-ID auf 0 gesetzt (Level 1)`);
   }, []);
 
   useEffect(() => {
@@ -891,8 +900,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (state.currentMarketSituation) {
       const situation = marketSituations.find(s => s.description === state.currentMarketSituation);
       if (situation) {
-        console.log('New Market Situation:', state.currentMarketSituation);
-        console.log('New Tool Available:', situation.toolDescription);
+        log('New Market Situation:', state.currentMarketSituation);
+        log('New Tool Available:', situation.toolDescription);
       }
     }
   }, [state.currentMarketSituation]);
@@ -980,10 +989,10 @@ export function runDebugStatisticalTests(
     });
     
     const pValue = performChiSquareTest(observed, expected);
-    console.log('Debug Chi-Square Test Results:', { pValue, significant: pValue < testCriteria.threshold });
+    log('Debug Chi-Square Test Results:', { pValue, significant: pValue < testCriteria.threshold });
   } else {
     // Use T-Test for numerical data
     const pValue = performTTest(techReturns, otherReturns);
-    console.log('Debug T-Test Results:', { pValue, significant: pValue < testCriteria.threshold });
+    log('Debug T-Test Results:', { pValue, significant: pValue < testCriteria.threshold });
   }
 } 

@@ -1,4 +1,5 @@
 import { PerformanceGroup } from './DataGenerationModel';
+import { log } from '../utils/logging';
 
 /**
  * Types of player actions that can be tracked
@@ -63,7 +64,7 @@ export class ActionTracker {
    */
   public static setCurrentScenario(scenarioId: number): void {
     this.currentScenarioId = scenarioId;
-    console.log(`Set current scenario ID to ${scenarioId}`);
+    log(`Set current scenario ID to ${scenarioId}`);
   }
   
   /**
@@ -80,52 +81,88 @@ export class ActionTracker {
     // Only check against actions in the current scenario
     const currentScenarioActions = this.actions.filter(a => a.scenarioId === this.currentScenarioId);
     
-    // For hypothesis, only allow one per scenario
-    if (type === 'hypothesis_selection') {
-      return currentScenarioActions.some(a => a.type === 'hypothesis_selection');
+    switch (type) {
+      case 'hypothesis_selection':
+        return this.isDuplicateHypothesis(currentScenarioActions);
+      case 'sector_selection':
+        return this.isDuplicateSectorSelection(currentScenarioActions, details);
+      case 'metric_selection':
+        return this.isDuplicateMetricSelection(currentScenarioActions, details);
+      case 'test_execution':
+        return this.isDuplicateTestExecution(currentScenarioActions, details);
+      case 'stock_purchase':
+        // Für Käufe erlauben wir mehrere Aktionen
+        return false;
+      default:
+        return false;
     }
+  }
+  
+  /**
+   * Prüft, ob bereits eine Hypothese für das aktuelle Szenario existiert
+   */
+  private static isDuplicateHypothesis(actions: PlayerAction[]): boolean {
+    return actions.some(a => a.type === 'hypothesis_selection');
+  }
+  
+  /**
+   * Prüft, ob die gleiche Sektorauswahl bereits existiert
+   */
+  private static isDuplicateSectorSelection(
+    actions: PlayerAction[],
+    details: Partial<PlayerAction['details']>
+  ): boolean {
+    if (!details.sectors || details.sectors.length === 0) return false;
     
-    // For sector selection, check if the same sectors are already selected
-    if (type === 'sector_selection' && details.sectors && details.sectors.length > 0) {
-      // First sort to ensure consistent comparison
-      const sortedDetailSectors = [...details.sectors].sort();
+    // First sort to ensure consistent comparison
+    const sortedDetailSectors = [...details.sectors].sort();
+    
+    return actions.some(a => {
+      if (a.type !== 'sector_selection' || !a.details.sectors) return false;
       
-      return currentScenarioActions.some(a => {
-        if (a.type !== 'sector_selection' || !a.details.sectors) return false;
-        
-        // Strict equality check for arrays with same length and sorted contents
-        const sortedActionSectors = [...a.details.sectors].sort();
-        return sortedActionSectors.length === sortedDetailSectors.length &&
-               sortedActionSectors.every((sector, index) => sector === sortedDetailSectors[index]);
-      });
-    }
+      // Strict equality check for arrays with same length and sorted contents
+      const sortedActionSectors = [...a.details.sectors].sort();
+      return sortedActionSectors.length === sortedDetailSectors.length &&
+              sortedActionSectors.every((sector, index) => sector === sortedDetailSectors[index]);
+    });
+  }
+  
+  /**
+   * Prüft, ob die gleiche Metrikauswahl bereits existiert
+   */
+  private static isDuplicateMetricSelection(
+    actions: PlayerAction[],
+    details: Partial<PlayerAction['details']>
+  ): boolean {
+    if (!details.metrics || details.metrics.length === 0 || !details.dataType) return false;
     
-    // For metric selection with the same metric and data type
-    if (type === 'metric_selection' && details.metrics && details.metrics.length > 0 && details.dataType) {
-      // First sort to ensure consistent comparison
-      const sortedDetailMetrics = [...details.metrics].sort();
+    // First sort to ensure consistent comparison
+    const sortedDetailMetrics = [...details.metrics].sort();
+    
+    return actions.some(a => {
+      if (a.type !== 'metric_selection' || !a.details.metrics || !a.details.dataType) return false;
       
-      return currentScenarioActions.some(a => {
-        if (a.type !== 'metric_selection' || !a.details.metrics || !a.details.dataType) return false;
-        
-        // Strict equality check for arrays with same length and sorted contents
-        const sortedActionMetrics = [...a.details.metrics].sort();
-        return a.details.dataType === details.dataType &&
-               sortedActionMetrics.length === sortedDetailMetrics.length &&
-               sortedActionMetrics.every((metric, index) => metric === sortedDetailMetrics[index]);
-      });
-    }
+      // Strict equality check for arrays with same length and sorted contents
+      const sortedActionMetrics = [...a.details.metrics].sort();
+      return a.details.dataType === details.dataType &&
+              sortedActionMetrics.length === sortedDetailMetrics.length &&
+              sortedActionMetrics.every((metric, index) => metric === sortedDetailMetrics[index]);
+    });
+  }
+  
+  /**
+   * Prüft, ob der gleiche Test bereits ausgeführt wurde
+   */
+  private static isDuplicateTestExecution(
+    actions: PlayerAction[],
+    details: Partial<PlayerAction['details']>
+  ): boolean {
+    if (!details.testType) return false;
     
-    // For test execution with the same test type
-    if (type === 'test_execution' && details.testType) {
-      return currentScenarioActions.some(a => 
-        a.type === 'test_execution' && 
-        a.details.testType === details.testType
-      );
-    }
-    
-    // For stock purchase, allow recording multiple purchases
-    return false;
+    return actions.some(a => 
+      a.type === 'test_execution' && 
+      a.details.testType === details.testType
+    );
   }
   
   /**
@@ -137,7 +174,7 @@ export class ActionTracker {
   ): void {
     // Skip if this is a duplicate action
     if (this.isDuplicateAction(type, details)) {
-      console.log('Duplicate action skipped:', type, details);
+      log('Duplicate action skipped:', type, details);
       return;
     }
     
@@ -152,26 +189,25 @@ export class ActionTracker {
     };
     
     this.actions.push(action);
-    console.log(`Action tracked for scenario ${this.currentScenarioId}:`, action);
-    // Zusätzliche Logs für jede Aktion
+    log(`Action tracked for scenario ${this.currentScenarioId}:`, action);
+    
+    // Minimales Logging für jede Aktion
     switch(type) {
       case 'hypothesis_selection':
-        console.log('Hypothesis selected:', details.hypothesis);
+        log('Hypothesis selected:', details.hypothesis);
         break;
       case 'sector_selection':
-        console.log('Sector(s) selected:', details.sectors);
+        log('Sector(s) selected:', details.sectors);
         break;
       case 'metric_selection':
-        console.log('Metric(s) selected:', details.metrics, 'Data type:', details.dataType);
+        log('Metric(s) selected:', details.metrics, 'Data type:', details.dataType);
         break;
       case 'test_execution':
-        console.log('Test executed:', details.testType, 'Data type:', details.dataType);
+        log('Test executed:', details.testType, 'Data type:', details.dataType);
         break;
       case 'stock_purchase':
-        console.log('Stock purchased:', details.purchasedSector, 'Quantity:', details.quantity);
+        log('Stock purchased:', details.purchasedSector, 'Quantity:', details.quantity);
         break;
-      default:
-        console.log('Other action:', type, details);
     }
   }
   
@@ -201,7 +237,7 @@ export class ActionTracker {
    */
   public static clearScenarioActions(scenarioId: number): void {
     this.actions = this.actions.filter(a => a.scenarioId !== scenarioId);
-    console.log(`Cleared actions for scenario ${scenarioId}`);
+    log(`Cleared actions for scenario ${scenarioId}`);
   }
   
   /**
