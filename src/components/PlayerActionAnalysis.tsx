@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -7,20 +7,14 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
   Button,
-  Divider,
   List,
-  ListItem
+  ListItem,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useGame } from '../contexts/GameContext';
@@ -33,20 +27,6 @@ interface PlayerActionAnalysisProps {
   onClose: () => void;
   situationIndex: number;
 }
-
-// Helper to get color based on performance group
-const getPerformanceColor = (group: PerformanceGroup): string => {
-  switch (group) {
-    case 'positive':
-      return '#43e294'; // green
-    case 'negative':
-      return '#e24343'; // red
-    case 'neutral':
-      return '#4a90e2'; // blue
-    default:
-      return '#ffffff'; // white
-  }
-};
 
 // Helper function to determine performance change
 const getPerformanceChange = (previousGroup: PerformanceGroup, currentGroup: PerformanceGroup): 'improved' | 'worsened' | 'stable' => {
@@ -99,48 +79,6 @@ function getActionTitle(actionType: string): string {
     default: return 'Action';
   }
 }
-
-// Function to sort actions in the correct display order
-const sortPlayerActions = (actions: PlayerAction[]): PlayerAction[] => {
-  const actionTypePriority = {
-    'hypothesis_selection': 1,
-    'sector_selection': 2,
-    'metric_selection': 3,
-    'test_execution': 4,
-    'stock_purchase': 5
-  };
-  
-  return [...actions].sort((a, b) => {
-    return (actionTypePriority[a.type as keyof typeof actionTypePriority] || 99) - 
-           (actionTypePriority[b.type as keyof typeof actionTypePriority] || 99);
-  });
-};
-
-// Function to ensure all required action types are present
-const ensureAllActionTypes = (actions: PlayerAction[]): PlayerAction[] => {
-  const sortedActions = sortPlayerActions(actions);
-  
-  // Check if there's a stock purchase action
-  const hasStockPurchase = sortedActions.some(action => action.type === 'stock_purchase');
-  
-  // If no stock purchase action exists, add a placeholder
-  if (!hasStockPurchase && actions.length > 0) {
-    const scenarioId = actions[0].scenarioId;
-    
-    sortedActions.push({
-      timestamp: Date.now(),
-      scenarioId: scenarioId,
-      type: 'stock_purchase',
-      details: {
-        purchasedSector: 'None',
-        quantity: 0,
-        isCorrect: true
-      }
-    });
-  }
-  
-  return sortedActions;
-};
 
 // Füge die fehlenden Helfer-Funktionen hinzu
 const getBackgroundColor = (action: PlayerAction): string => {
@@ -372,7 +310,6 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
           const stockPurchaseAction = {
             purchasedSector: portfolio[0].sector.name,
             quantity: portfolio[0].quantity,
-            price: portfolio[0].purchasePrice,
             isCorrect: true
           };
           ActionTracker.addAction('stock_purchase', stockPurchaseAction);
@@ -392,7 +329,6 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
           details: {
             purchasedSector: portfolio[0].sector.name,
             quantity: portfolio[0].quantity,
-            price: portfolio[0].purchasePrice,
             isCorrect: true
           }
         };
@@ -496,28 +432,23 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
       });
     });
     
+    // Aktionen für das aktuelle Szenario löschen
+    ActionTracker.clearScenarioActions(situationIndex);
+    console.log('ActionTracker: Aktionen für Szenario', situationIndex, 'gelöscht');
+    
     // Zum nächsten Szenario wechseln
     dispatch({ 
       type: 'ADVANCE_TO_NEXT_SCENARIO'
     });
     
+    // Öffne das Popup für das neue Szenario direkt
+    dispatch({ type: 'SHOW_SCENARIO_COMPLETION_POPUP' });
+    
     // Schließe alle offenen Popups
     onClose();
     
     console.log('Sold all sectors, and advanced to next scenario');
-  }, [portfolio, dispatch, onClose]);
-  
-  // Memoize this function to prevent recreation on each render
-  const getChangeIcon = useCallback((change: 'improved' | 'worsened' | 'stable') => {
-    switch (change) {
-      case 'improved':
-        return <TrendingUpIcon sx={{ color: '#43e294' }} />;
-      case 'worsened':
-        return <TrendingDownIcon sx={{ color: '#e24343' }} />;
-      case 'stable':
-        return <TrendingFlatIcon sx={{ color: '#4a90e2' }} />;
-    }
-  }, []);
+  }, [portfolio, dispatch, onClose, situationIndex]);
   
   // Memoize renderActions to prevent function recreation on every render
   const renderActions = useCallback(() => {
@@ -667,230 +598,248 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        style: {
-          backgroundColor: '#1e1e1e',
+        sx: {
+          zIndex: 2000,
+          background: 'linear-gradient(135deg, #23272f 80%, #43e294 120%)',
           color: 'white',
-          height: '90vh',
-          position: 'absolute',
-          top: '80px',
-          overflow: 'hidden',
+          border: '2px solid #43e294',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(67,226,148,0.15)',
+          minHeight: 600,
+          maxHeight: '90vh',
+          position: 'fixed',
+          top: '90px',
+          display: 'flex',
+          flexDirection: 'column',
+          p: 0
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        borderBottom: '1px solid #4a90e2',
-        py: 1
-      }}>
-        <Typography 
-          variant="h6" 
-          component="div"
-          sx={{
-            color: '#e2a343',
-            fontWeight: 'bold',
-            fontSize: '1.25rem',
-            padding: '10px 16px',
-            backgroundColor: 'rgba(226, 163, 67, 0.1)',
-            borderRadius: '6px',
-            border: '1px solid rgba(226, 163, 67, 0.3)',
-            boxShadow: '0 0 8px rgba(226, 163, 67, 0.2)',
-            maxWidth: '90%',
-            lineHeight: 1.4,
-          }}
-        >
-          <AssignmentIcon sx={{ mr: 1 }} />
-          Scenario Analysis - Player Actions
-        </Typography>
-        <IconButton 
-          onClick={handleClose}
-          sx={{ 
-            color: 'white',
-            '&:hover': {
-              color: '#ff4444'
-            }
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ p: 2, height: 'calc(90vh - 64px)', overflow: 'auto' }}>
-        {/* Profit/Loss Overview */}
-        <Paper 
-          sx={{ 
-            p: 3, 
-            mb: 4, 
-            backgroundColor: profitLoss >= 0 ? 'rgba(67, 226, 148, 0.1)' : 'rgba(226, 67, 67, 0.1)', 
-            borderRadius: 2,
-            border: `1px solid ${profitLoss >= 0 ? 'rgba(67, 226, 148, 0.3)' : 'rgba(226, 67, 67, 0.3)'}`,
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <MonetizationOnIcon 
-                sx={{ 
-                  fontSize: 48, 
-                  color: profitLoss >= 0 ? '#43e294' : '#e24343',
-                  mr: 2
-                }} 
-              />
-              <Box>
-                <Typography variant="h6" sx={{ color: profitLoss >= 0 ? '#43e294' : '#e24343', fontWeight: 'bold' }}>
-                  {profitLoss >= 0 ? 'Profit Made!' : 'Loss Incurred'}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#ccc' }}>
-                  Level start value: ${previousPortfolioValue.toFixed(2)}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#ccc' }}>
-                  Level end value: ${currentPortfolioValue.toFixed(2)}
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ textAlign: 'right' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    color: profitLoss >= 0 ? '#43e294' : '#e24343',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {profitLoss >= 0 ? '+' : ''}${Math.abs(profitLoss).toFixed(2)}
-                </Typography>
-                {profitLoss >= 0 
-                  ? <TrendingUpIcon sx={{ ml: 1, fontSize: 30, color: '#43e294' }} /> 
-                  : <TrendingDownIcon sx={{ ml: 1, fontSize: 30, color: '#e24343' }} />
-                }
-              </Box>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  color: profitLoss >= 0 ? 'rgba(67, 226, 148, 0.8)' : 'rgba(226, 67, 67, 0.8)',
-                }}
-              >
-                {profitLoss >= 0 ? '+' : ''}{profitLossPercentage.toFixed(2)}%
-              </Typography>
-            </Box>
-          </Box>
-          
-          {/* Performance Feedback */}
-          <Paper sx={{ 
-            p: 2, 
-            backgroundColor: 'rgba(0,0,0,0.2)', 
-            borderLeft: `4px solid ${feedback.color}`,
-            mt: 2
-          }}>
-            <Typography variant="body1" sx={{ color: feedback.color, fontWeight: 'medium' }}>
-              {feedback.text}
-            </Typography>
-          </Paper>
-        </Paper>
-        
-        {/* Scenario Description */}
-        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#2a2a2a', border: '1px solid #4a90e2' }}>
-          <Typography variant="h6" gutterBottom sx={{ color: '#e2a343', mb: 1 }}>
-            Scenario Complete
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 2, fontStyle: 'italic', color: '#ccc' }}>
-            {marketSituation.description}
-          </Typography>
-        </Paper>
-        
-        {/* Player Actions Analysis */}
-        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#2a2a2a', border: '1px solid #4a90e2' }}>
-          <Typography variant="h6" gutterBottom sx={{ color: '#e2a343', mb: 2 }}>
-            Your Actions
-          </Typography>
-          
-          {/* Verwende renderActions Funktion mit zusätzlichem Log für Debugging */}
-          {(() => {
-            // Log für Debugging
-            console.log('Rendering actions in PlayerActionAnalysis dialog, current scenario:', situationIndex);
-            if (performanceData?.actions) {
-              console.log(
-                'All actions:', performanceData.actions.length, 
-                'Current scenario actions:', performanceData.actions.filter(a => a.scenarioId === situationIndex).length
-              );
-              
-              // Extrahiere Sektoren aus der Hypothese
-              const currentScenarioHypothesis = performanceData.actions
-                .find(a => a.type === 'hypothesis_selection' && a.scenarioId === situationIndex);
-              
-              if (currentScenarioHypothesis && currentScenarioHypothesis.details.hypothesis) {
-                const expectedSectors = extractSectorsFromHypothesis(currentScenarioHypothesis.details.hypothesis);
-                console.log('Hypothesis sectors:', expectedSectors.join(' '));
-                
-                // Überprüfe Sektorauswahl auf Hypothese-Match
-                const sectorSelection = performanceData.actions
-                  .find(a => a.type === 'sector_selection' && a.scenarioId === situationIndex);
-                
-                if (sectorSelection && sectorSelection.details.sectors) {
-                  console.log('Selected sectors:', sectorSelection.details.sectors);
-                  
-                  // Normalisiere die Hypothese-Sektoren zur besseren Vergleichbarkeit
-                  const normalizedHypothesisSectors = expectedSectors.map(s => s.toLowerCase());
-                  const normalizedSelectedSectors = sectorSelection.details.sectors.map(s => s.toLowerCase());
-                  
-                  console.log('Normalized hypothesis sectors:', normalizedHypothesisSectors);
-                  console.log('Normalized selected sectors:', normalizedSelectedSectors);
-                  
-                  // Prüfe, ob die Sektoren übereinstimmen
-                  const sectorsMatch = 
-                    normalizedSelectedSectors.length === 2 &&
-                    normalizedSelectedSectors.every(selected => 
-                      normalizedHypothesisSectors.some(expected => 
-                        selected === expected || (selected.includes(expected) || expected.includes(selected))
-                      )
-                    );
-                  
-                  console.log('Sectors match?', sectorsMatch);
-                }
-              }
-            }
-            
-            return renderActions();
-          })()}
-          
-          {/* Decision Summary */}
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="subtitle1" sx={{ color: '#4a90e2', mb: 1 }}>Decision Summary</Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-              <Box sx={{ textAlign: 'center', mr: 4 }}>
-                <Typography variant="h6" sx={{ color: '#43e294' }}>
-                  {performanceData?.correctDecisions || 0}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#aaa' }}>Correct Decisions</Typography>
-              </Box>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h6" sx={{ color: '#e24343' }}>
-                  {performanceData?.incorrectDecisions || 0}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#aaa' }}>Incorrect Decisions</Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-        
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handleClose}
-            sx={{ 
-              minWidth: 200,
-              borderColor: '#4a90e2',
+      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderBottom: '1px solid #43e294',
+          py: 1,
+          background: 'rgba(34, 50, 60, 0.7)',
+          position: 'relative'
+        }}>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              color: '#43e294',
               fontWeight: 'bold',
-              backgroundColor: '#e2a343',
+              fontSize: '1.25rem',
+              lineHeight: 1.4,
+              textAlign: 'center',
+              width: '100%'
+            }}
+          >
+            Scenario Analysis - Player Actions
+          </Typography>
+          <IconButton
+            onClick={handleClose}
+            sx={{
+              color: 'white',
+              position: 'absolute',
+              right: 16,
+              top: 12,
               '&:hover': {
-                backgroundColor: 'rgba(226, 163, 67, 0.8)'
+                color: '#ff4444'
               }
             }}
           >
-            NEXT LVL
-          </Button>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <Box sx={{ flex: 1, overflow: 'auto', width: '100%' }}>
+          <DialogContent sx={{ p: 2, height: '100%', overflowY: 'auto' }}>
+            {/* Profit/Loss Overview */}
+            <Paper
+              sx={{
+                p: 3,
+                mb: 4,
+                background: profitLoss >= 0 ? 'rgba(67, 226, 148, 0.10)' : 'rgba(226, 67, 67, 0.10)',
+                borderRadius: 3,
+                border: `1.5px solid ${profitLoss >= 0 ? '#43e294' : '#e24343'}`,
+                boxShadow: '0 2px 12px rgba(67,226,148,0.10)',
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <MonetizationOnIcon 
+                    sx={{ 
+                      fontSize: 48, 
+                      color: profitLoss >= 0 ? '#43e294' : '#e24343',
+                      mr: 2
+                    }} 
+                  />
+                  <Box>
+                    <Typography variant="h6" sx={{ color: profitLoss >= 0 ? '#43e294' : '#e24343', fontWeight: 'bold' }}>
+                      {profitLoss >= 0 ? 'Profit Made!' : 'Loss Incurred'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: '#ccc' }}>
+                      Level start value: ${previousPortfolioValue.toFixed(2)}
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: '#ccc' }}>
+                      Level end value: ${currentPortfolioValue.toFixed(2)}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <Typography 
+                      variant="h4" 
+                      sx={{ 
+                        color: profitLoss >= 0 ? '#43e294' : '#e24343',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {profitLoss >= 0 ? '+' : ''}${Math.abs(profitLoss).toFixed(2)}
+                    </Typography>
+                    {profitLoss >= 0 
+                      ? <TrendingUpIcon sx={{ ml: 1, fontSize: 30, color: '#43e294' }} /> 
+                      : <TrendingDownIcon sx={{ ml: 1, fontSize: 30, color: '#e24343' }} />
+                    }
+                  </Box>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      color: profitLoss >= 0 ? 'rgba(67, 226, 148, 0.8)' : 'rgba(226, 67, 67, 0.8)',
+                    }}
+                  >
+                    {profitLoss >= 0 ? '+' : ''}{profitLossPercentage.toFixed(2)}%
+                  </Typography>
+                </Box>
+              </Box>
+              
+              {/* Performance Feedback */}
+              <Paper sx={{ 
+                p: 2, 
+                backgroundColor: 'rgba(0,0,0,0.2)', 
+                borderLeft: `4px solid ${feedback.color}`,
+                mt: 2
+              }}>
+                <Typography variant="body1" sx={{ color: feedback.color, fontWeight: 'medium' }}>
+                  {feedback.text}
+                </Typography>
+              </Paper>
+            </Paper>
+            
+            {/* Scenario Description */}
+            <Paper sx={{ p: 2, mb: 3, background: 'rgba(34, 50, 60, 0.7)', border: '1.5px solid #43e294', borderRadius: 3, boxShadow: '0 2px 12px rgba(67,226,148,0.10)' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: '#43e294', mb: 1 }}>
+                Scenario Complete
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2, fontStyle: 'italic', color: '#ccc' }}>
+                {marketSituation.description}
+              </Typography>
+            </Paper>
+            
+            {/* Player Actions Analysis */}
+            <Paper sx={{ p: 2, mb: 3, background: 'rgba(34, 50, 60, 0.7)', border: '1.5px solid #2196f3', borderRadius: 3, boxShadow: '0 2px 12px rgba(33,150,243,0.10)' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: '#2196f3', mb: 2 }}>
+                Your Actions
+              </Typography>
+              
+              {/* Verwende renderActions Funktion mit zusätzlichem Log für Debugging */}
+              {(() => {
+                // Log für Debugging
+                console.log('Rendering actions in PlayerActionAnalysis dialog, current scenario:', situationIndex);
+                if (performanceData?.actions) {
+                  console.log(
+                    'All actions:', performanceData.actions.length, 
+                    'Current scenario actions:', performanceData.actions.filter(a => a.scenarioId === situationIndex).length
+                  );
+                  
+                  // Extrahiere Sektoren aus der Hypothese
+                  const currentScenarioHypothesis = performanceData.actions
+                    .find(a => a.type === 'hypothesis_selection' && a.scenarioId === situationIndex);
+                  
+                  if (currentScenarioHypothesis && currentScenarioHypothesis.details.hypothesis) {
+                    const expectedSectors = extractSectorsFromHypothesis(currentScenarioHypothesis.details.hypothesis);
+                    console.log('Hypothesis sectors:', expectedSectors.join(' '));
+                    
+                    // Überprüfe Sektorauswahl auf Hypothese-Match
+                    const sectorSelection = performanceData.actions
+                      .find(a => a.type === 'sector_selection' && a.scenarioId === situationIndex);
+                    
+                    if (sectorSelection && sectorSelection.details.sectors) {
+                      console.log('Selected sectors:', sectorSelection.details.sectors);
+                      
+                      // Normalisiere die Hypothese-Sektoren zur besseren Vergleichbarkeit
+                      const normalizedHypothesisSectors = expectedSectors.map(s => s.toLowerCase());
+                      const normalizedSelectedSectors = sectorSelection.details.sectors.map(s => s.toLowerCase());
+                      
+                      console.log('Normalized hypothesis sectors:', normalizedHypothesisSectors);
+                      console.log('Normalized selected sectors:', normalizedSelectedSectors);
+                      
+                      // Prüfe, ob die Sektoren übereinstimmen
+                      const sectorsMatch = 
+                        normalizedSelectedSectors.length === 2 &&
+                        normalizedSelectedSectors.every(selected => 
+                          normalizedHypothesisSectors.some(expected => 
+                            selected === expected || (selected.includes(expected) || expected.includes(selected))
+                          )
+                        );
+                      
+                      console.log('Sectors match?', sectorsMatch);
+                    }
+                  }
+                }
+                
+                return renderActions();
+              })()}
+              
+              {/* Decision Summary */}
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Typography variant="subtitle1" sx={{ color: '#4a90e2', mb: 1 }}>Decision Summary</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                  <Box sx={{ textAlign: 'center', mr: 4 }}>
+                    <Typography variant="h6" sx={{ color: '#43e294' }}>
+                      {performanceData?.correctDecisions || 0}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#aaa' }}>Correct Decisions</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h6" sx={{ color: '#e24343' }}>
+                      {performanceData?.incorrectDecisions || 0}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#aaa' }}>Incorrect Decisions</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Paper>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                sx={{
+                  maxWidth: 300,
+                  fontWeight: 'bold',
+                  fontSize: '1.2rem',
+                  py: 2,
+                  borderRadius: 2,
+                  background: 'linear-gradient(90deg, #43e294 60%, #2196f3 100%)',
+                  boxShadow: '0 2px 12px rgba(67,226,148,0.15)',
+                  color: '#fff',
+                  letterSpacing: 1,
+                  '&:hover': {
+                    background: 'linear-gradient(90deg, #2196f3 60%, #43e294 100%)',
+                    color: '#fff'
+                  }
+                }}
+                onClick={handleClose}
+              >
+                NEXT LVL
+              </Button>
+            </Box>
+          </DialogContent>
         </Box>
-      </DialogContent>
+      </Box>
     </Dialog>
   );
 }); 

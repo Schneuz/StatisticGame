@@ -16,7 +16,8 @@ import {
   TableHead,
   TableRow,
   Snackbar,
-  Alert
+  Alert,
+  IconButton
 } from '@mui/material';
 import { useGame, marketSituations } from '../contexts/GameContext';
 import { sectors, Sector } from '../data/sectors';
@@ -24,6 +25,7 @@ import { SectorPurchase } from './SectorBuy';
 import { SectorSell } from './SectorSell';
 import { runAndLogStatisticalTest } from '../models/StatisticalTestModel';
 import { normal, binomial, generateCategoricalData, getMetricParameters } from '../models/DataGenerationModel';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface PurchaseRecommendationDialogProps {
   open: boolean;
@@ -165,8 +167,11 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
     
     // Run actual statistical test
     let testType: 'T-Test' | 'Chi-Square' = 'T-Test';
-    if (marketSituation.testCriteria && marketSituation.testCriteria.type) {
-      testType = marketSituation.testCriteria.type;
+    
+    // Determine test type based on hypothesis statement
+    const hypothesis = marketSituation.hypotheses[0].statement.toLowerCase();
+    if (hypothesis.includes('proportion') || hypothesis.includes('distribution') || hypothesis.includes('frequency')) {
+      testType = 'Chi-Square';
     }
     
     // Determine the metric type from the hypothesis
@@ -177,8 +182,6 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
       metricType = "proportion_positive_days";
     } else if (hypothesis.includes("negative returns")) {
       metricType = "proportion_negative_days";
-    } else if (hypothesis.includes("volatility")) {
-      metricType = "proportion_high_volatility_days";
     } else if (hypothesis.includes("distribution")) {
       metricType = "distribution_return_categories";
     }
@@ -203,7 +206,7 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
       hypothesis,
       sectorAData,
       sectorBData,
-      marketSituation.testCriteria ? marketSituation.testCriteria.threshold : 0.05
+      marketSituation.testCriteria.threshold
     );
     
     // Create a message based on actual test results
@@ -260,25 +263,65 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
       PaperProps={{
-        style: {
-          backgroundColor: '#1e1e1e',
-          color: 'white'
+        sx: {
+          zIndex: 2000,
+          background: 'linear-gradient(135deg, #23272f 80%, #43e294 120%)',
+          color: 'white',
+          border: '2px solid #43e294',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(67,226,148,0.15)',
+          maxHeight: '90vh',
+          position: 'fixed',
+          top: '90px',
+          p: 0
         }
       }}
     >
       <DialogTitle sx={{ 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         borderBottom: '1px solid #4a90e2',
-        textAlign: 'center'
+        py: 1,
+        background: 'rgba(34, 50, 60, 0.7)',
+        position: 'relative'
       }}>
-        Purchase Recommendations
+        <Typography 
+          variant="h6" 
+          component="div"
+          sx={{
+            color: '#43e294',
+            fontWeight: 'bold',
+            fontSize: '1.25rem',
+            lineHeight: 1.4,
+            textAlign: 'center',
+            width: '100%'
+          }}
+        >
+          Purchase Recommendations
+        </Typography>
+        <IconButton 
+          onClick={onClose}
+          sx={{ 
+            color: 'white',
+            position: 'absolute',
+            right: 16,
+            top: 12,
+            '&:hover': {
+              color: '#ff4444'
+            }
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ p: 2, maxHeight: 'calc(90vh - 64px)', overflowY: 'auto' }}>
         <Box sx={{ mt: 2, mb: 3 }}>
           {/* Portfolio Table */}
-          <Typography variant="subtitle1" gutterBottom sx={{ color: '#4a90e2', textAlign: 'center' }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ color: '#4a90e2', textAlign: 'center', fontWeight: 'bold' }}>
             Portfolio Overview
           </Typography>
-          <Paper sx={{ p: 2, backgroundColor: '#2a2a2a', borderRadius: 2, mb: 3 }}>
+          <Paper sx={{ p: 2, backgroundColor: 'rgba(34, 50, 60, 0.7)', border: '1.5px solid #2196f3', borderRadius: 3, boxShadow: '0 2px 12px rgba(33,150,243,0.10)', mb: 3 }}>
             <TableContainer>
               <Table size="small">
                 <TableHead>
@@ -368,8 +411,10 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
           {showHint && (
             <Paper sx={{ 
               p: 3, 
-              backgroundColor: '#333', 
-              borderRadius: 2, 
+              backgroundColor: 'rgba(34, 50, 60, 0.7)',
+              border: '1.5px solid #43e294',
+              borderRadius: 3, 
+              boxShadow: '0 2px 12px rgba(67,226,148,0.10)',
               mb: 3,
               maxHeight: '200px',
               overflow: 'auto'
@@ -398,9 +443,10 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
                     <Paper 
                       sx={{ 
                         p: 3, 
-                        backgroundColor: '#2a2a2a', 
-                        borderRadius: 2,
-                        border: activeSector === sector ? '2px solid #43e294' : '1px solid #444',
+                        backgroundColor: 'rgba(34, 50, 60, 0.7)',
+                        border: activeSector === sector ? '2px solid #43e294' : '1.5px solid #2196f3',
+                        borderRadius: 3,
+                        boxShadow: '0 2px 12px rgba(33,150,243,0.10)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         '&:hover': {
@@ -454,7 +500,8 @@ const PurchaseRecommendationDialog: React.FC<PurchaseRecommendationDialogProps> 
         borderTop: '1px solid #4a90e2', 
         p: 2,
         display: 'flex',
-        justifyContent: 'center' 
+        justifyContent: 'center',
+        background: 'rgba(34, 50, 60, 0.7)'
       }}>
         <Button 
           onClick={onClose} 
@@ -545,10 +592,6 @@ function generateHypothesisData(metric: string, sector: string,
   if (metric === 'proportion_positive_days' || metric === 'proportion_negative_days' || 
       metric === 'proportion_high_volatility_days') {
     return binomial(params.probability!, 200);
-  }
-  
-  if (metric === 'distribution_return_categories') {
-    return generateCategoricalData(params.categoricalDistribution!, 200);
   }
   
   // Fallback

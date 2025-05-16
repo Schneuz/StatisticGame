@@ -72,8 +72,31 @@ export const StickyStartPauseButton: React.FC = () => {
   // Handle button click based on game state
   const handleButtonClick = () => {
     if (isScenarioComplete) {
-      // Advance to next scenario
+      // Schließe alle offenen Popups (globales Window-Event auslösen)
+      const closePopupsEvent = new CustomEvent('closeAllPopups');
+      window.dispatchEvent(closePopupsEvent);
+
+      // Sende ein weiteres Event speziell für das ScenarioAnalysisPopup
+      const closeScenarioAnalysisPopupEvent = new CustomEvent('closeScenarioAnalysisPopup');
+      window.dispatchEvent(closeScenarioAnalysisPopupEvent);
+
+      // Alle Aktien verkaufen
+      state.portfolio.forEach(item => {
+        dispatch({
+          type: 'SELL_SECTOR',
+          sectorName: item.sector.name,
+          quantity: item.quantity
+        });
+      });
+
+      // Aktionen für das aktuelle Szenario löschen
+      import('../models/ActionTracker').then(({ ActionTracker }) => {
+        ActionTracker.clearScenarioActions(state.currentSituationIndex);
+      });
+
+      // Zum nächsten Szenario wechseln
       dispatch({ type: 'ADVANCE_TO_NEXT_SCENARIO' });
+      
     } else {
       // Toggle pause state
       dispatch({ type: 'TOGGLE_AUTO_PROGRESS' });

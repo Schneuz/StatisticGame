@@ -103,7 +103,7 @@ export const HeaderWithScenario: React.FC = () => {
   const descriptionFromContext = state.marketSituation?.description;
   const scenarioKey = getScenarioKey(descriptionFromContext);
   const image = getScenarioImage(scenarioKey);
-  const description = scenarioKey ? scenarioDescriptions[scenarioKey] : '';
+  const description = descriptionFromContext || '';
   const currentIndex = state.currentSituationIndex ?? 0;
   const hypotheses = marketSituations[currentIndex]?.hypotheses || [];
 
@@ -143,11 +143,11 @@ export const HeaderWithScenario: React.FC = () => {
               Hypothesen:
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {hypotheses.map((hyp: string, idx: number) => {
-                const testInfo = getTestIconAndColor(hyp);
+              {hypotheses.map((hyp, idx) => {
+                const testInfo = getTestIconAndColor(hyp.statement);
                 // Split hypothesis into main text and test type
-                const match = hyp.match(/(.*?)(\s*→\s*)(T-Test|Chi²)/i);
-                const mainText = match ? match[1].trim() : hyp;
+                const match = hyp.statement.match(/(.*?)(\s*→\s*)(T-Test|Chi²)/i);
+                const mainText = match ? match[1].trim() : hyp.statement;
                 const testType = match ? match[3] : '';
                 return (
                   <Box
@@ -167,7 +167,7 @@ export const HeaderWithScenario: React.FC = () => {
                         background: 'rgba(74, 144, 226, 0.15)',
                       },
                     }}
-                    onClick={() => handleHypothesisClick(hyp)}
+                    onClick={() => handleHypothesisClick(hyp.statement)}
                   >
                     {testInfo.icon}
                     <Typography variant="body1" sx={{ color: '#fff', fontWeight: 400, flex: 1 }}>

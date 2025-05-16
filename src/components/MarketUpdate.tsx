@@ -93,7 +93,7 @@ export const MarketUpdate: React.FC = () => {
         }}
       >
         <DialogTitle sx={{ color: '#2196f3' }}>Analysis Recommendation</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 2, maxHeight: { xs: '60vh', sm: '70vh', md: '80vh' }, overflowY: 'auto' }}>
           <Typography variant="body1" gutterBottom>
             {marketSituation.toolDescription}
           </Typography>

@@ -106,7 +106,6 @@ export function getMetricParameters(metric: string, performanceGroup: Performanc
     proportion_positive_days: { probability: 0.6 },
     proportion_negative_days: { probability: 0.3 },
     proportion_high_volatility_days: { probability: 0.25 },
-    distribution_return_categories: { categoricalDistribution: [0.3, 0.1, 0.6] },
     mean_gain: { mean: 0.07, stdDev: 0.03 },
     mean_loss: { mean: -0.05, stdDev: 0.025 }
   };
@@ -139,9 +138,6 @@ function adjustPositiveParameters(metric: string, baseParams: MetricParameters):
     case 'proportion_negative_days':
       params.probability = Math.max(0.05, (params.probability || 0) - 0.15);
       break;
-    case 'distribution_return_categories':
-      params.categoricalDistribution = [0.15, 0.1, 0.75];
-      break;
     case 'mean_gain':
       params.mean = (params.mean || 0) + 0.03;
       break;
@@ -169,9 +165,6 @@ function adjustNegativeParameters(metric: string, baseParams: MetricParameters):
       break;
     case 'proportion_negative_days':
       params.probability = Math.min(0.85, (params.probability || 0) + 0.25);
-      break;
-    case 'distribution_return_categories':
-      params.categoricalDistribution = [0.65, 0.15, 0.2];
       break;
     case 'mean_gain':
       params.mean = (params.mean || 0) - 0.03;
@@ -205,10 +198,6 @@ export function generateHypothesisData(metric: string, sector: string,
   if (metric === 'proportion_positive_days' || metric === 'proportion_negative_days' || 
       metric === 'proportion_high_volatility_days') {
     return binomial(params.probability!, 200);
-  }
-  
-  if (metric === 'distribution_return_categories') {
-    return generateCategoricalData(params.categoricalDistribution!, 200);
   }
   
   // Fallback

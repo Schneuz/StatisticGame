@@ -8,9 +8,11 @@ import {
   TextField,
   Typography,
   Box,
-  Slider
+  Slider,
+  IconButton
 } from '@mui/material';
 import { PortfolioItem } from '../contexts/GameContext';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface SectorSellProps {
   portfolioItem: PortfolioItem | null;
@@ -52,17 +54,67 @@ export const SectorSell: React.FC<SectorSellProps> = ({
       open={true} 
       onClose={onClose}
       PaperProps={{
-        style: {
-          backgroundColor: '#1e1e1e',
-          color: 'white'
+        sx: {
+          backgroundColor: '#23272f',
+          color: 'white',
+          border: '2px solid #43e294',
+          borderRadius: 0,
+          minHeight: 420,
+          maxHeight: '90vh',
+          position: 'fixed',
+          top: '90px',
+          zIndex: 2000,
+          p: 0,
+          display: 'flex',
+          flexDirection: 'column'
         }
       }}
     >
-      <DialogTitle>
-        Sell Sector: {portfolioItem.sector.name}
+      <DialogTitle sx={{ 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottom: '1px solid #4a90e2',
+        py: 2,
+        pr: 7,
+        background: 'rgba(34, 50, 60, 0.7)',
+        position: 'relative',
+        minHeight: 0
+      }}>
+        <Typography 
+          variant="h6" 
+          component="div"
+          sx={{
+            color: '#43e294',
+            fontWeight: 'bold',
+            fontSize: '1.25rem',
+            lineHeight: 1.4,
+            textAlign: 'center',
+            width: '100%'
+          }}
+        >
+          Sell Sector: {portfolioItem.sector.name}
+        </Typography>
+        <IconButton 
+          onClick={onClose}
+          sx={{ 
+            color: 'white',
+            position: 'absolute',
+            right: 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            p: 0.5,
+            '&:hover': {
+              color: '#ff4444'
+            }
+          }}
+          size="small"
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
+      <DialogContent sx={{ p: 2, flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>
+        <Typography variant="body1" sx={{ mb: 2, mt: 2 }}>
           Current Price: ${portfolioItem.sector.currentPrice.toFixed(2)}
         </Typography>
         <Typography variant="body1" sx={{ mb: 2 }}>
@@ -157,25 +209,39 @@ export const SectorSell: React.FC<SectorSellProps> = ({
       <DialogActions>
         <Button 
           onClick={onClose}
-          sx={{ color: '#2196f3' }}
+          fullWidth
+          sx={{ 
+            color: '#fff',
+            backgroundColor: '#444',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            py: 1.2,
+            borderRadius: 1,
+            mr: 2,
+            '&:hover': {
+              backgroundColor: '#666'
+            }
+          }}
         >
           CANCEL
         </Button>
         <Button
           onClick={handleSell}
           variant="contained"
+          fullWidth
           disabled={quantity <= 0 || quantity > portfolioItem.quantity}
           sx={{
-            backgroundColor: '#333',
+            backgroundColor: '#2196f3',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            py: 1.2,
+            borderRadius: 1,
             '&:hover': {
-              backgroundColor: '#444'
+              backgroundColor: '#1769aa',
+              color: '#fff'
             },
-            '&:not(:disabled)': {
-              backgroundColor: '#2196f3',
-              '&:hover': {
-                backgroundColor: '#1976d2'
-              }
-            }
+            ml: 2
           }}
         >
           SELL

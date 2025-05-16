@@ -42,14 +42,10 @@ interface Metric {
 
 // Metric explanations (English, with concrete example)
 const metricExplanations: Record<string, string> = {
-  mean_return: `The average daily return (arithmetic mean) of a sector over the analysis period.\n\nExample: If the daily returns for a week are 2%, 1%, -1%, 0%, and 3%, the mean return is (2 + 1 - 1 + 0 + 3) / 5 = 1% per day.`,
-  median_return: `The median of daily returns for a sector – the middle value when all returns are sorted.\n\nExample: For daily returns of 2%, 1%, -1%, 0%, and 3%, sorted: -1%, 0%, 1%, 2%, 3%. The median return is 1%.`,
-  proportion_positive_days: `The proportion of days in the analysis period where the sector's return was positive.\n\nExample: If out of 10 days, 7 days had a positive return, the proportion is 7/10 = 70%.`,
-  proportion_negative_days: `The proportion of days in the analysis period where the sector's return was negative.\n\nExample: If out of 10 days, 3 days had a negative return, the proportion is 3/10 = 30%.`,
-  proportion_high_volatility_days: `The proportion of days where the sector's volatility (fluctuation) exceeded a defined threshold.\n\nExample: If the threshold is 2% and on 4 out of 20 days the return changed by more than 2%, the proportion is 4/20 = 20%.`,
-  distribution_return_categories: `The distribution of days into categories: gain, loss, and neutral (e.g., how many days were positive, negative, or unchanged).\n\nExample: Out of 10 days, 6 were positive, 2 were negative, and 2 were unchanged. The distribution is 60% gain, 20% loss, 20% neutral.`,
-  mean_gain: `The average gain on days with a positive return.\n\nExample: If on 5 positive days the returns were 2%, 1%, 3%, 2%, and 4%, the mean gain is (2 + 1 + 3 + 2 + 4) / 5 = 2.4%.`,
-  mean_loss: `The average loss on days with a negative return.\n\nExample: If on 3 negative days the returns were -1%, -2%, and -3%, the mean loss is (-1 + -2 + -3) / 3 = -2%.`
+  mean_return: `The average daily return of a sector.\n\nExample: If a sector had returns of +2%, -1%, +3%, and -2%, the mean return would be (+2% - 1% + 3% - 2%) / 4 = +0.5%.`,
+  median_return: `The middle value of all daily returns when sorted.\n\nExample: For returns [-2%, -1%, +1%, +2%, +3%], the median return is +1%.`,
+  proportion_positive_days: `The proportion of days where the sector had a positive return.\n\nExample: If a sector had positive returns on 12 out of 20 days, the proportion is 12/20 = 60%.`,
+  proportion_negative_days: `The proportion of days where the sector had a negative return.\n\nExample: If a sector had negative returns on 8 out of 20 days, the proportion is 8/20 = 40%.`
 };
 
 export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hypothesis }) => {
@@ -68,10 +64,8 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
   const metrics = useMemo<Metric[]>(() => [
     { id: 'mean_return', name: 'Mean Return', type: 'numerical', icon: '📈' },
     { id: 'median_return', name: 'Median Return', type: 'numerical', icon: '📊' },
-    { id: 'proportion_positive_days', name: 'Positive Return Days', type: 'categorical', icon: '🟢' },
-    { id: 'proportion_negative_days', name: 'Negative Return Days', type: 'categorical', icon: '🔴' },
-    { id: 'proportion_high_volatility_days', name: 'High-Volatility Days', type: 'categorical', icon: '⚡' },
-    { id: 'distribution_return_categories', name: 'Distribution of Return Categories', type: 'categorical', icon: '📊' },
+    { id: 'proportion_positive_days', name: 'Positive Days', type: 'categorical', icon: '📈' },
+    { id: 'proportion_negative_days', name: 'Negative Days', type: 'categorical', icon: '📉' },
     { id: 'mean_gain', name: 'Mean Gain', type: 'numerical', icon: '➕' },
     { id: 'mean_loss', name: 'Mean Loss', type: 'numerical', icon: '➖' }
   ], []);
@@ -171,12 +165,10 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
     
     // Look for metric keywords in the hypothesis
     const metricKeywords = [
-      { id: 'mean_return', keywords: ['mean return', 'average return', 'mean'] },
-      { id: 'median_return', keywords: ['median return', 'median'] },
-      { id: 'proportion_positive_days', keywords: ['positive days', 'positive return days'] },
-      { id: 'proportion_negative_days', keywords: ['negative days', 'negative return days'] },
-      { id: 'proportion_high_volatility_days', keywords: ['volatility', 'high volatility'] },
-      { id: 'distribution_return_categories', keywords: ['distribution', 'categories'] },
+      { id: 'mean_return', keywords: ['mean', 'average', 'return'] },
+      { id: 'median_return', keywords: ['median', 'middle', 'return'] },
+      { id: 'proportion_positive_days', keywords: ['positive', 'days', 'proportion'] },
+      { id: 'proportion_negative_days', keywords: ['negative', 'days', 'proportion'] },
       { id: 'mean_gain', keywords: ['mean gain', 'average gain'] },
       { id: 'mean_loss', keywords: ['mean loss', 'average loss'] }
     ];
@@ -445,6 +437,9 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
   };
 
   const [openMetricInfo, setOpenMetricInfo] = useState<string | null>(null);
+  const [openTestInfo, setOpenTestInfo] = useState(false);
+  const [openTestStatisticInfo, setOpenTestStatisticInfo] = useState(false);
+  const [openPValueInfo, setOpenPValueInfo] = useState(false);
 
   // Felder zurücksetzen, wenn sich die Hypothese ändert
   useEffect(() => {
@@ -480,272 +475,380 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        style: {
-          backgroundColor: '#1e1e1e',
+        sx: {
+          zIndex: 2000,
+          background: 'linear-gradient(135deg, #23272f 80%, #43e294 120%)',
           color: 'white',
-          height: '90vh',
-          position: 'absolute',
-          top: '80px',
-          overflow: 'hidden',
+          border: '2px solid #43e294',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(67,226,148,0.15)',
+          minHeight: 600,
+          maxHeight: '90vh',
+          position: 'fixed',
+          top: '90px',
+          display: 'flex',
+          flexDirection: 'column',
+          p: 0
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        borderBottom: '1px solid #4a90e2',
-        py: 1
-      }}>
-        <Typography 
-          variant="h6" 
-          component="div"
-          sx={{
-            color: '#43e294',
-            fontWeight: 'bold',
-            fontSize: '1.25rem',
-            padding: '10px 16px',
-            backgroundColor: 'rgba(67, 226, 148, 0.1)',
-            borderRadius: '6px',
-            border: '1px solid rgba(67, 226, 148, 0.3)',
-            boxShadow: '0 0 8px rgba(67, 226, 148, 0.2)',
-            maxWidth: '90%',
-            lineHeight: 1.4,
+      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          borderBottom: '1px solid #4a90e2',
+          py: 1,
+          background: 'rgba(34, 50, 60, 0.7)',
+          position: 'relative'
+        }}>
+          <Typography 
+            variant="h6" 
+            component="div"
+            sx={{
+              color: '#43e294',
+              fontWeight: 'bold',
+              fontSize: '1.25rem',
+              lineHeight: 1.4,
+              textAlign: 'center',
+              width: '100%'
+            }}
+          >
+            Analysis
+          </Typography>
+          <IconButton 
+            onClick={onClose}
+            sx={{ 
+              color: 'white',
+              position: 'absolute',
+              right: 16,
+              top: 12,
+              '&:hover': {
+                color: '#ff4444'
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        {hypothesis && (
+          <Box sx={{
+            width: '100%',
+            background: 'rgba(67, 226, 148, 0.12)',
+            borderBottom: '1px solid #43e294',
+            px: 4,
+            py: 2,
             display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          <ScienceIcon sx={{ mr: 1 }} />
-          {hypothesis}
-        </Typography>
-        <IconButton 
-          onClick={onClose}
-          sx={{ 
-            color: 'white',
-            '&:hover': {
-              color: '#ff4444'
-            }
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ p: 2, height: 'calc(90vh - 64px)', overflow: 'hidden' }}>
-        <DndProvider backend={HTML5Backend}>
-          <Grid container spacing={2} sx={{ height: '100%' }}>
-            {/* Left side - Available metrics */}
-            <Grid item xs={3}>
-              <Paper sx={{ p: 1, height: '100%', backgroundColor: '#2a2a2a', overflow: 'auto' }}>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
-                  Available Metrics
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {metrics.map(metric => (
-                    <Box
-                      key={metric.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        height: '48px',
-                        minHeight: '48px',
-                        maxHeight: '48px',
-                        borderRadius: 1,
-                        background: 'none',
-                        mb: 0,
-                        gap: 1,
-                        boxSizing: 'border-box',
-                        overflow: 'hidden',
-                        wordBreak: 'break-word',
-                        paddingLeft: 0,
-                        paddingRight: 0,
-                      }}
-                    >
-                      <MetricCard
-                        id={metric.id}
-                        name={metric.name}
-                        type={metric.type}
-                        icon={metric.icon}
-                      />
-                      <Tooltip title="More info">
-                        <InfoOutlinedIcon
-                          sx={{ color: '#4a90e2', cursor: 'pointer', fontSize: 20 }}
-                          onClick={() => setOpenMetricInfo(metric.id)}
-                        />
-                      </Tooltip>
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            color: '#43e294',
+            letterSpacing: 0.5,
+            boxShadow: '0 2px 8px rgba(67,226,148,0.08)'
+          }}>
+            {hypothesis}
+          </Box>
+        )}
+        <Box sx={{ flex: 1, overflow: 'hidden', width: '100%', minHeight: 0 }}>
+          <DialogContent sx={{ p: 2, height: '100%', maxHeight: 'calc(90vh - 120px)', overflowY: 'auto' }}>
+            <DndProvider backend={HTML5Backend}>
+              <Grid container spacing={2} sx={{ height: '100%' }}>
+                {/* Left side - Available metrics */}
+                <Grid item xs={3}>
+                  <Paper sx={{
+                    p: 1.5,
+                    height: '100%',
+                    background: 'rgba(34, 50, 60, 0.7)',
+                    border: '1.5px solid #2196f3',
+                    borderRadius: 3,
+                    boxShadow: '0 2px 12px rgba(33,150,243,0.10)',
+                    mb: 2
+                  }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem', color: '#2196f3', fontWeight: 'bold', mb: 1 }}>
+                      Available Metrics
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {metrics.map(metric => (
+                        <Box
+                          key={metric.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            height: '48px',
+                            minHeight: '48px',
+                            maxHeight: '48px',
+                            borderRadius: 1,
+                            background: 'none',
+                            mb: 0,
+                            gap: 1,
+                            boxSizing: 'border-box',
+                            overflow: 'hidden',
+                            wordBreak: 'break-word',
+                            paddingLeft: 0,
+                            paddingRight: 0,
+                          }}
+                        >
+                          <MetricCard
+                            id={metric.id}
+                            name={metric.name}
+                            type={metric.type}
+                            icon={metric.icon}
+                          />
+                          <Tooltip title="More info">
+                            <InfoOutlinedIcon
+                              sx={{ color: '#4a90e2', cursor: 'pointer', fontSize: 20 }}
+                              onClick={() => setOpenMetricInfo(metric.id)}
+                            />
+                          </Tooltip>
+                        </Box>
+                      ))}
                     </Box>
-                  ))}
-                </Box>
-                {/* Info-Popup für Metric-Erklärung */}
-                <Dialog open={!!openMetricInfo} onClose={() => setOpenMetricInfo(null)}>
-                  <DialogTitle>Metric Info</DialogTitle>
-                  <DialogContent>
-                    <Typography>
-                      {openMetricInfo ? metricExplanations[openMetricInfo] : ''}
-                    </Typography>
-                  </DialogContent>
-                </Dialog>
-              </Paper>
-            </Grid>
-
-            {/* Middle - Configuration and Preview */}
-            <Grid item xs={6}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
-                {/* Configuration */}
-                <Paper sx={{ p: 1, backgroundColor: '#2a2a2a' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
-                    Configuration
-                  </Typography>
-                  <Grid container spacing={1}>
-                    {/* Vergleichsbox A */}
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>Sector A</Typography>
-                      <select
-                        value={sectorA}
-                        onChange={e => setSectorA(e.target.value)}
-                        style={{ width: '100%', marginBottom: 8, background: '#1e1e1e', color: 'white', border: '1px solid #4a90e2', borderRadius: 4, height: '32px' }}
-                      >
-                        <option value="">Select sector...</option>
-                        {sectorOptions.map(sector => (
-                          <option key={sector} value={sector}>{sector}</option>
-                        ))}
-                      </select>
-                      <VariableSlot
-                        id="A"
-                        label="Metric for A"
-                        onDrop={(metricId) => handleDrop('A', metricId)}
-                        currentMetric={getMetricById(slotA)?.name || null}
-                      />
-                    </Grid>
-                    {/* Vergleichsbox B */}
-                    <Grid item xs={6}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>Sector B</Typography>
-                      <select
-                        value={sectorB}
-                        onChange={e => setSectorB(e.target.value)}
-                        style={{ width: '100%', marginBottom: 8, background: '#1e1e1e', color: 'white', border: '1px solid #4a90e2', borderRadius: 4, height: '32px' }}
-                      >
-                        <option value="">Select sector...</option>
-                        {sectorOptions.map(sector => (
-                          <option key={sector} value={sector}>{sector}</option>
-                        ))}
-                      </select>
-                      <VariableSlot
-                        id="B"
-                        label="Metric for B"
-                        onDrop={(metricId) => handleDrop('B', metricId)}
-                        currentMetric={getMetricById(slotB)?.name || null}
-                      />
-                    </Grid>
-                  </Grid>
-                </Paper>
-                {/* Diagram Preview */}
-                <Paper sx={{ p: 1, backgroundColor: '#2a2a2a', flex: 1, minHeight: 0 }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
-                    Diagram Preview
-                  </Typography>
-                  <Box sx={{ height: 'calc(100% - 32px)' }}>
-                    <DiagramPreview
-                      variableX={slotA || ''}
-                      variableY={slotB || ''}
-                      metrics={metrics}
-                      sectorA={sectorA}
-                      sectorB={sectorB}
-                    />
-                  </Box>
-                </Paper>
-                {/* Test-Buttons - centered */}
-                <Grid container spacing={2} sx={{ mt: 3, mb: 2, justifyContent: 'center' }}>
-                  <Grid item xs={4}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      fullWidth
-                      onClick={() => runTest('ttest')}
-                    >
-                      T-Test
-                    </Button>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Button
-                      variant="contained"
-                      color="info"
-                      fullWidth
-                      onClick={() => runTest('chisquare')}
-                    >
-                      Chi-Square
-                    </Button>
-                  </Grid>
+                    {/* Info-Popup für Metric-Erklärung */}
+                    <Dialog open={!!openMetricInfo} onClose={() => setOpenMetricInfo(null)}>
+                      <DialogTitle>Metric Info</DialogTitle>
+                      <DialogContent>
+                        <Typography>
+                          {openMetricInfo ? metricExplanations[openMetricInfo] : ''}
+                        </Typography>
+                      </DialogContent>
+                    </Dialog>
+                  </Paper>
                 </Grid>
-              </Box>
-            </Grid>
 
-            {/* Right side - Analysis results */}
-            <Grid item xs={3}>
-              <Paper sx={{ p: 1, height: '100%', backgroundColor: '#2a2a2a' }}>
-                <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
-                  Analysis Results
-                </Typography>
-                {testResult ? (
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>
-                      Test Statistic: {testResult.statistic.toFixed(3)}
+                {/* Middle - Configuration and Preview */}
+                <Grid item xs={6} sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%', minHeight: 0 }}>
+                    {/* Configuration */}
+                    <Paper sx={{
+                      p: 2,
+                      background: 'rgba(34, 50, 60, 0.7)',
+                      border: '1.5px solid #43e294',
+                      borderRadius: 3,
+                      boxShadow: '0 2px 12px rgba(67,226,148,0.10)',
+                      mb: 2,
+                      mt: 1
+                    }}>
+                      <Typography variant="h6" gutterBottom sx={{ fontSize: '1.1rem', color: '#43e294', fontWeight: 'bold', mb: 2 }}>
+                        Configuration
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {/* Vergleichsbox A */}
+                        <Grid item xs={6}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.95rem', color: '#43e294', fontWeight: 'bold' }}>Sector A</Typography>
+                          <select
+                            value={sectorA}
+                            onChange={e => setSectorA(e.target.value)}
+                            style={{ width: '100%', marginBottom: 10, background: '#1e1e1e', color: 'white', border: '1.5px solid #43e294', borderRadius: 6, height: '36px', fontSize: '1rem', paddingLeft: 8 }}
+                          >
+                            <option value="">Select sector...</option>
+                            {sectorOptions.map(sector => (
+                              <option key={sector} value={sector}>{sector}</option>
+                            ))}
+                          </select>
+                          <VariableSlot
+                            id="A"
+                            label="Metric for A"
+                            onDrop={(metricId) => handleDrop('A', metricId)}
+                            currentMetric={getMetricById(slotA)?.name || null}
+                          />
+                        </Grid>
+                        {/* Vergleichsbox B */}
+                        <Grid item xs={6}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.95rem', color: '#43e294', fontWeight: 'bold' }}>Sector B</Typography>
+                          <select
+                            value={sectorB}
+                            onChange={e => setSectorB(e.target.value)}
+                            style={{ width: '100%', marginBottom: 10, background: '#1e1e1e', color: 'white', border: '1.5px solid #43e294', borderRadius: 6, height: '36px', fontSize: '1rem', paddingLeft: 8 }}
+                          >
+                            <option value="">Select sector...</option>
+                            {sectorOptions.map(sector => (
+                              <option key={sector} value={sector}>{sector}</option>
+                            ))}
+                          </select>
+                          <VariableSlot
+                            id="B"
+                            label="Metric for B"
+                            onDrop={(metricId) => handleDrop('B', metricId)}
+                            currentMetric={getMetricById(slotB)?.name || null}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                    {/* Diagram Preview */}
+                    <Paper sx={{ p: 2, pb: 5, background: 'rgba(34, 50, 60, 0.7)', border: '1.5px solid #2196f3', borderRadius: 3, boxShadow: '0 2px 12px rgba(33,150,243,0.10)', flex: 1, minHeight: 0, mt: 2, overflowY: 'auto' }}>
+                      <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem', color: '#2196f3', fontWeight: 'bold', mb: 1 }}>
+                        Diagram Preview
+                      </Typography>
+                      <Box sx={{ height: 'calc(100% - 32px)' }}>
+                        <DiagramPreview
+                          variableX={slotA || ''}
+                          variableY={slotB || ''}
+                          metrics={metrics}
+                          sectorA={sectorA}
+                          sectorB={sectorB}
+                        />
+                      </Box>
+                    </Paper>
+                    {/* Test-Buttons - centered */}
+                    <Grid container spacing={2} sx={{ mt: 2, mb: 2, justifyContent: 'center' }}>
+                      <Grid item xs={5} sm={4} md={3}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          onClick={() => runTest('ttest')}
+                          sx={{
+                            background: '#2196f3',
+                            color: '#fff',
+                            fontWeight: 'bold',
+                            fontSize: '1.1rem',
+                            borderRadius: 2,
+                            boxShadow: '0 2px 12px rgba(33,150,243,0.15)',
+                            py: 1.5,
+                            letterSpacing: 1,
+                            minWidth: 140,
+                            minHeight: 48,
+                            '&:hover': {
+                              background: '#1769aa',
+                              color: '#fff'
+                            }
+                          }}
+                        >
+                          T-TEST
+                        </Button>
+                      </Grid>
+                      <Grid item xs={5} sm={4} md={3}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          onClick={() => runTest('chisquare')}
+                          sx={{
+                            background: '#2196f3',
+                            color: '#fff',
+                            fontWeight: 'bold',
+                            fontSize: '1.1rem',
+                            borderRadius: 2,
+                            boxShadow: '0 2px 12px rgba(33,150,243,0.15)',
+                            py: 1.5,
+                            letterSpacing: 1,
+                            minWidth: 180,
+                            minHeight: 48,
+                            '&:hover': {
+                              background: '#1769aa',
+                              color: '#fff'
+                            }
+                          }}
+                        >
+                          CHI-SQUARE
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+
+                {/* Right side - Analysis results */}
+                <Grid item xs={3}>
+                  <Paper sx={{
+                    p: 2,
+                    height: '100%',
+                    background: 'linear-gradient(135deg, #23272f 80%, #43e294 120%)',
+                    border: '2px solid #43e294',
+                    borderRadius: 3,
+                    boxShadow: '0 4px 24px rgba(67,226,148,0.15)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    minHeight: 320
+                  }}>
+                    <Typography variant="h6" gutterBottom sx={{ fontSize: '1.1rem', color: '#43e294', fontWeight: 'bold', letterSpacing: 1, mb: 2 }}>
+                      Analysis Results
                     </Typography>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>
-                      P-Value: {testResult.pValue.toFixed(3)}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        mt: 1, 
-                        color: testResult.isInappropriate ? '#ffcc00' : '#4a90e2', 
-                        fontSize: '0.875rem', 
-                        mb: 2,
-                        fontStyle: testResult.isInappropriate ? 'italic' : 'normal'
-                      }}
-                    >
-                      {interpretation}
-                    </Typography>
-                    
-                    {testResult.isInappropriate && (
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          mt: 1, 
-                          color: '#ffcc00', 
-                          fontSize: '0.8rem', 
-                          mb: 2,
-                          fontStyle: 'italic',
-                          backgroundColor: 'rgba(255, 204, 0, 0.1)',
-                          padding: '8px',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        The chosen test may not be optimal for this data. Results may be misleading or inconclusive.
+                    {testResult ? (
+                      <Box sx={{ width: '100%', mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '1.1rem' }}>
+                            Test Statistic:
+                          </Typography>
+                          <Typography variant="subtitle1" sx={{ color: '#43e294', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                            {testResult.statistic.toFixed(3)}
+                          </Typography>
+                          <Tooltip title="Was ist die Teststatistik?">
+                            <InfoOutlinedIcon sx={{ color: '#43e294', cursor: 'pointer', fontSize: 20 }} onClick={() => setOpenTestStatisticInfo(true)} />
+                          </Tooltip>
+                        </Box>
+                        <Dialog open={openTestStatisticInfo} onClose={() => setOpenTestStatisticInfo(false)}>
+                          <DialogTitle>Test Statistic Info</DialogTitle>
+                          <DialogContent>
+                            <Typography>
+                              Die Teststatistik ist eine Zahl, die zeigt, wie groß der Unterschied zwischen zwei Gruppen ist. Je größer die Zahl, desto größer der Unterschied.
+                              <br /><br />
+                              <b>Beispiel:</b> Wenn Gruppe A einen Durchschnitt von 10 hat und Gruppe B einen Durchschnitt von 5, ist die Teststatistik größer als wenn beide Gruppen fast gleich sind.
+                            </Typography>
+                          </DialogContent>
+                        </Dialog>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '1.1rem' }}>
+                            P-Value:
+                          </Typography>
+                          <Typography variant="subtitle1" sx={{ color: '#43e294', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                            {testResult.pValue.toFixed(3)}
+                          </Typography>
+                          <Tooltip title="Was ist der p-Wert?">
+                            <InfoOutlinedIcon sx={{ color: '#43e294', cursor: 'pointer', fontSize: 20 }} onClick={() => setOpenPValueInfo(true)} />
+                          </Tooltip>
+                        </Box>
+                        <Dialog open={openPValueInfo} onClose={() => setOpenPValueInfo(false)}>
+                          <DialogTitle>P-Value Info</DialogTitle>
+                          <DialogContent>
+                            <Typography>
+                              Der p-Wert zeigt, wie wahrscheinlich es ist, dass der Unterschied zwischen zwei Gruppen nur Zufall ist. Ein kleiner p-Wert (z.B. unter 0,05) bedeutet: Es ist sehr wahrscheinlich ein echter Unterschied.
+                              <br /><br />
+                              <b>Beispiel:</b> Ein p-Wert von 0,01 heißt: Es gibt nur 1% Wahrscheinlichkeit, dass das Ergebnis Zufall ist.
+                            </Typography>
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="outlined"
+                          color="info"
+                          fullWidth
+                          sx={{ mt: 2, fontWeight: 'bold', borderColor: '#43e294', color: '#43e294', '&:hover': { borderColor: '#43e294', background: 'rgba(67,226,148,0.08)' } }}
+                          onClick={() => setOpenTestInfo(true)}
+                        >
+                          SHOW TEST INFO
+                        </Button>
+                        <Dialog open={openTestInfo} onClose={() => setOpenTestInfo(false)}>
+                          <DialogTitle>Test Result Info</DialogTitle>
+                          <DialogContent>
+                            <Typography>
+                              {interpretation}
+                            </Typography>
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          fullWidth
+                          sx={{ mt: 3, fontWeight: 'bold', fontSize: '1.2rem', py: 2, borderRadius: 2, background: 'linear-gradient(90deg, #43e294 60%, #2196f3 100%)', boxShadow: '0 2px 12px rgba(67,226,148,0.15)' }}
+                          onClick={() => setPurchaseDialogOpen(true)}
+                        >
+                          BUY NOW
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="gray" sx={{ fontSize: '0.95rem' }}>
+                        Run the test to see results
                       </Typography>
                     )}
-                    
-                    <Button
-                      variant="contained"
-                      color="success"
-                      fullWidth
-                      onClick={() => setPurchaseDialogOpen(true)}
-                      sx={{ mt: 2 }}
-                    >
-                      View Purchase Options
-                    </Button>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="gray" sx={{ fontSize: '0.875rem' }}>
-                    Run the test to see results
-                  </Typography>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
-        </DndProvider>
-      </DialogContent>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </DndProvider>
+          </DialogContent>
+        </Box>
+      </Box>
       
       {/* Add PurchaseRecommendationDialog */}
       <PurchaseRecommendationDialog

@@ -38,17 +38,21 @@ export const TestAnalysisDialog: React.FC<TestAnalysisDialogProps> = ({
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        style: {
+        sx: {
+          zIndex: 2000,
           backgroundColor: '#1e1e1e',
           color: 'white',
-          minHeight: '80vh'
+          minHeight: '80vh',
+          maxHeight: '90vh',
+          position: 'fixed',
+          top: '90px'
         }
       }}
     >
       <DialogTitle sx={{ borderBottom: '1px solid #4a90e2' }}>
         {getTestTitle()}
       </DialogTitle>
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent sx={{ p: 0, maxHeight: 'calc(90vh - 64px)', overflowY: 'auto' }}>
         <Box sx={{ height: '100%', p: 2 }}>
           <StatisticalAnalysis initialTab={testType} />
         </Box>

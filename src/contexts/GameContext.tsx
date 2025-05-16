@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Sector, sectors } from '../data/sectors';
-import { setCurrentMarketSituationIndex, PerformanceGroup } from '../models/DataGenerationModel';
+import { PerformanceGroup } from '../models/DataGenerationModel';
 import { getSectorPerformanceGroup } from '../models/SectorModel';
 import { ActionTracker } from '../models/ActionTracker';
 
@@ -53,11 +53,13 @@ interface MarketSituation {
   };
   expectedOutcomes: string[];
   testCriteria: {
-    type: 'T-Test' | 'Chi-Square';
     threshold: number;
-    comparisonPeriod: number;
   };
-  hypotheses: string[];
+  hypotheses: {
+    statement: string;
+    expected: string;
+    narrativeHint: string;
+  }[];
 }
 
 type GameAction =
@@ -77,7 +79,7 @@ type GameAction =
 
 export const marketSituations: MarketSituation[] = [
   {
-    description: "Elrond's valley shimmers under a canopy of stars. Taverns overflow with mead, bakers serve warm honeyed lembas, and artisans craft tirelessly. Caravans roll out daily with festival goods. Bandits lurk in moonless gorges; armed escorts become scarce.",
+    description: "Elrond's valley shimmers under a canopy of stars. The air in Imladris is alive with a gentle joy beneath the watchful stars. Elven voices, light as the rustling of leaves, weave through the soft glow of hearth fires, where golden mead is poured and the sweet fragrance of honeyed lembas wafts from the kitchens. In the hidden workshops, the skilled hands of Elven craftspeople move with practiced grace, preparing exquisite wares for the upcoming gathering. With each sunrise, carts laden with finely wrought goods and provisions trundle along the winding paths, destined for settlements beyond the valley. Yet, even in this haven, whispers of unease drift from the shadowed passes, and the need for vigilant sentinels along the borders grows with the lengthening of the nights.",
     recommendedTool: "T-Test",
     toolDescription: "Food & Beverages outperform Precious Metals. Use a T-Test to verify.",
     performanceGroups: {
@@ -87,26 +89,34 @@ export const marketSituations: MarketSituation[] = [
     },
     expectedOutcomes: [
       "Food & Beverages show a significantly higher mean return than Precious Metals.",
-      "Craftsmanship & Technology's daily return distribution differs significantly from the overall market.",
-      "Transport & Logistics have a higher proportion of high-volatility days than Exploration & Cartography.",
+      "Craftsmanship & Technology have a higher proportion of positive return days than Glassware & Mirrors.",
       "Medicine & Healing have a higher proportion of positive return days than Agriculture & Livestock.",
-      "Armor & Weapons have a mean return significantly greater than zero."
+      "No significant difference in mean return between Agriculture & Livestock and Construction Materials & Resources.",
+      "Jewelry & Gems have a higher proportion of negative return days than Textiles & Clothing."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Food & Beverages is higher than the mean return of Precious Metals.",
-      "The distribution of daily return categories (Gain, Loss, Flat) for Craftsmanship & Technology is different from the distribution of daily return categories for Glassware & Mirrors.",
-      "The proportion of days exceeding a predefined volatility threshold for Transport & Logistics is higher than for Exploration & Cartography.",
-      "The proportion of days with positive returns for Medicine & Healing is higher than for Agriculture & Livestock.",
-      "The mean return of Armor & Weapons is greater than zero."
+      {
+        statement: "The mean return of Food & Beverages is higher than the mean return of Precious Metals.",
+        expected: "Higher for Food & Beverages",
+        narrativeHint: "The description emphasizes the active consumption of 'golden mead' and the appealing scent of 'honeyed lembas,' indicating a high demand and turnover within the Food & Beverages sector. In contrast, while precious metals might be present in Imladris, there is no specific mention of active trading or a surge in their market, implying a less dynamic economic performance compared to the flourishing food and beverage industry in this peaceful setting."
+      },
+      {
+        statement: "The median return of Craftsmanship & Technology is different from the median return of Glassware & Mirrors.",
+        expected: "Higher for Craftsmanship",
+        narrativeHint: "The narrative focuses on the 'skilled hands' of Elven artisans diligently creating 'exquisite wares' for a specific event, suggesting a high level of economic activity and value associated with their craftsmanship. The sector of Glassware & Mirrors is not explicitly mentioned or emphasized in the description of this bustling activity, implying a potentially less significant or dynamic market compared to the thriving Craftsmanship & Technology sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Medicine & Healing is higher than for Agriculture & Livestock.",
+        expected: "Higher for Medicine",
+        narrativeHint: "While the 'gentle joy' suggests a healthy environment, the preparations for a 'gathering' and the movement of 'laden carts' could lead to minor accidents or ailments, creating a consistent demand for the services of healers. The neutral performance of Agriculture & Livestock suggests a steady supply but not necessarily a high frequency of positive returns compared to the anticipated consistent need for medical attention in a scenario involving travel and gatherings."
+      }
     ]
   },
   {
-    description: "War drums thunder across the Pelennor Fields. Behind white walls, forges hammer, healers stack herbs, and citizens hoard grain. Traders avoid the main roads, and luxury goods gather dust.",
+    description: "War drums thunder across the Pelennor Fields. The very air above the wide expanse of the Pelennor vibrates with the deep, resonating beat of war drums, a sound that chills the bone and steels the heart. Within the towering walls of Minas Tirith, the urgent clang of the forge echoes through the streets as smiths labour tirelessly, shaping iron and steel for the coming conflict. In the city's halls, healers meticulously lay out stores of healing herbs and clean bandages, anticipating the grim toll of battle. The granaries, fortified against siege, are filled to their capacity as the city's inhabitants prepare for the storm. The main thoroughfares are largely deserted, save for grim-faced messengers on swift steeds, carrying tidings of war. Amidst the preparations, finely wrought trinkets and festive garments lie forgotten in the dust of market stalls, their allure lost in the shadow of impending war.",
     recommendedTool: "T-Test",
     toolDescription: "Armor & Weapons outperform Food & Beverages. Use a T-Test to verify.",
     performanceGroups: {
@@ -117,25 +127,37 @@ export const marketSituations: MarketSituation[] = [
     expectedOutcomes: [
       "Armor & Weapons show a significantly higher mean return than Food & Beverages.",
       "Medicine & Healing have a lower proportion of negative return days than Transport & Logistics.",
-      "Exploration & Cartography have a higher proportion of high-volatility days than Precious Metals.",
-      "No significant difference in mean gain between Agriculture & Livestock and Construction Materials & Resources.",
+      "Agriculture & Livestock have a mean gain not significantly different from Construction Materials & Resources.",
       "Textiles & Clothing have a significantly lower median return than Precious Metals."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Armor & Weapons is higher than the mean return of Food & Beverages.",
-      "The proportion of days with negative returns for Medicine & Healing is lower than for Transport & Logistics.",
-      "The proportion of days exceeding a predefined volatility threshold for Exploration & Cartography is higher than for Precious Metals.",
-      "The mean gain of Agriculture & Livestock is not significantly different from Construction Materials & Resources.",
-      "The median return of Textiles & Clothing is lower than the median return of Precious Metals."
+      {
+        statement: "The mean return of Armor & Weapons is higher than the mean return of Food & Beverages.",
+        expected: "Higher for Armor & Weapons",
+        narrativeHint: "The sounds of 'urgent clang of the forge' and the sight of smiths laboring 'tirelessly' to produce weapons directly indicate a high demand and intense activity in the Armor & Weapons sector. Conversely, the description of 'granaries... filled to their capacity' suggests a focus on stockpiling food rather than active market exchange or a surge in demand for Food & Beverages, implying a lower mean return compared to the booming arms industry in this wartime scenario."
+      },
+      {
+        statement: "The proportion of days with negative returns for Medicine & Healing is lower than for Transport & Logistics.",
+        expected: "Lower for Medicine",
+        narrativeHint: "The proactive preparation of healers, 'anticipating the grim toll of battle,' suggests a consistent and crucial role for the Medicine & Healing sector in the face of inevitable casualties, likely leading to fewer negative returns. In contrast, the 'deserted' main roads highlight the significant risks and disruptions faced by the Transport & Logistics sector due to the impending war, making negative returns more probable."
+      },
+      {
+        statement: "The mean gain of Agriculture & Livestock is not significantly different from Construction Materials & Resources.",
+        expected: "No significant difference",
+        narrativeHint: "Both sectors play vital roles in preparing for and enduring the siege. The filling of 'granaries' signifies the successful culmination of agricultural efforts in securing essential food supplies. Simultaneously, the focus on the 'towering walls of Minas Tirith' underscores the continuous need for construction materials to maintain and strengthen defenses. This parallel importance suggests a similar level of economic activity and gain for both Agriculture & Livestock and Construction Materials & Resources in this wartime context."
+      },
+      {
+        statement: "The median return of Textiles & Clothing is lower than the median return of Precious Metals.",
+        expected: "Lower for Textiles",
+        narrativeHint: "In the face of imminent war, the priorities shift towards essential goods and security. The 'forgotten' textiles and festive garments in the market stalls illustrate a decline in demand for non-essential items. Conversely, precious metals often serve as a reliable store of value and a medium of exchange during uncertain times, allowing them to maintain or even increase their worth relative to less critical goods like textiles and clothing."
+      }
     ]
   },
   {
-    description: "An unrelenting sun scorches Rohan's Eastfold. Wells dry up, fields turn to dust, herds thin out. Stonemasons and well-diggers roam the lands, and healers prepare fever remedies.",
+    description: "An unrelenting sun scorches Rohan's Eastfold. A brazen sun beats down with relentless fury upon the Eastfold of Rohan, baking the once fertile land until the very earth cracks and dust devils dance across the horizon. The wells have long since yielded their last drop, and the verdant fields, once rippling with grain, are now brittle and brown, offering no sustenance. The once-proud herds of horses and cattle are gaunt and few, their ribs showing beneath their parched hides. Across the desolate landscape, stonemasons and well-diggers, their faces grim with determination, seek what little work remains, their skills desperately needed. In the scattered settlements, healers, their knowledge taxed to its limit, brew what meager remedies they can against the fevers and sickness that grip the weakened populace.",
     recommendedTool: "T-Test",
     toolDescription: "Construction Materials & Resources outperform Agriculture & Livestock. Use T-Test to verify.",
     performanceGroups: {
@@ -151,20 +173,33 @@ export const marketSituations: MarketSituation[] = [
       "Armor & Weapons have a higher proportion of loss days than Jewelry & Gems."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The median return of Construction Materials & Resources is higher than the median return of Agriculture & Livestock.",
-      "The proportion of days with positive returns for Medicine & Healing is higher than for Food & Beverages.",
-      "The proportion of days exceeding a predefined volatility threshold for Precious Metals is lower than for Transport & Logistics.",
-      "The mean gain of Craftsmanship & Technology is not significantly different from Exploration & Cartography.",
-      "The proportion of days with losses for Armor & Weapons is higher than for Jewelry & Gems."
+      {
+        statement: "The median return of Construction Materials & Resources is higher than the median return of Agriculture & Livestock.",
+        expected: "Higher for Construction",
+        narrativeHint: "The severe drought has rendered the agricultural sector unproductive, with 'brittle and brown' fields offering 'no sustenance,' indicating a near-zero or negative return. In contrast, the skills of 'stonemasons and well-diggers' are 'desperately needed' to find alternative water sources and potentially build more resilient structures, signifying a higher demand and thus a higher median return for the Construction Materials & Resources sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Medicine & Healing is higher than for Food & Beverages.",
+        expected: "Higher for Medicine",
+        narrativeHint: "The widespread 'fevers and sickness' resulting from the drought create a constant and urgent demand for the services of healers and their limited remedies, leading to a higher proportion of days with positive returns for the Medicine & Healing sector. The drying up of 'wells' and the failure of the fields directly and severely impact the availability of food and beverages, likely causing prolonged negative returns for that sector."
+      },
+      {
+        statement: "The proportion of days exceeding a predefined volatility threshold for Precious Metals is lower than for Transport & Logistics.",
+        expected: "Higher volatility for Transport",
+        narrativeHint: "The extreme heat and lack of water make travel across the 'cracked earth' highly dangerous and unreliable, leading to frequent disruptions and thus significant volatility in the Transport & Logistics sector. Precious metals, not directly tied to the immediate physical challenges of the drought, are likely to maintain a more stable value, resulting in lower volatility compared to the difficulties of transportation."
+      },
+      {
+        statement: "The proportion of days with losses for Armor & Weapons is higher than for Jewelry & Gems.",
+        expected: "Higher losses for Armor",
+        narrativeHint: "The decimation of horse and cattle herds due to the drought severely limits the resources available for military endeavors, directly reducing the demand and profitability of Armor & Weapons, thus increasing the proportion of days with losses. While Jewelry & Gems are not essential in this crisis, they might still retain some value as tradable commodities or personal assets, potentially experiencing fewer days of complete loss compared to the significantly impacted arms industry."
+      }
     ]
   },
   {
-    description: "Deep in Moria's shadows, new Mithril veins gleam. Messengers race over mountain passes; investor camps spring up outside the East Gate. Precious metal prices skyrocket.",
+    description: "Deep in Moria's shadows, new Mithril veins gleam. From the echoing depths of Moria, a whisper, swift as a shadow, spreads through the dwarven halls and beyond: new veins of pure Mithril, the precious metal of legend, have been unearthed in the deepest chasms. Swift messengers, their faces alight with excitement, are dispatched over the treacherous mountain passes, carrying news of the discovery. Makeshift camps of eager prospectors, their tools glinting in the dim light, and shrewd investors, their eyes gleaming with avarice, sprout like hardy weeds outside the East Gate. The price of precious metals in all the lands soars to unprecedented heights, fueled by the promise of untold riches.",
     recommendedTool: "T-Test",
     toolDescription: "Precious Metals outperform Jewelry & Gems. Use a T-Test to verify.",
     performanceGroups: {
@@ -180,20 +215,33 @@ export const marketSituations: MarketSituation[] = [
       "Medicine & Healing have a higher proportion of negative return days than Construction Materials & Resources."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Precious Metals is higher than the mean return of Jewelry & Gems.",
-      "The proportion of days exceeding a predefined volatility threshold for Jewelry & Gems is higher than for Craftsmanship & Technology.",
-      "The proportion of days with positive returns for Transport & Logistics is higher than for Agriculture & Livestock.",
-      "The mean return of Glassware & Mirrors is higher than the mean return of Food & Beverages.",
-      "The proportion of days with negative returns for Medicine & Healing is higher than for Construction Materials & Resources."
+      {
+        statement: "The mean return of Precious Metals is higher than the mean return of Jewelry & Gems.",
+        expected: "Higher for Precious Metals",
+        narrativeHint: "The discovery of 'new veins of pure Mithril' and the subsequent surge in the 'price of precious metals' across the land clearly point to a significant increase in the mean return for the Precious Metals sector. The narrative does not suggest a similar positive impact on Jewelry & Gems, and the focus on the raw material might even temporarily overshadow the market for finished jewelry, implying a lower mean return for that sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Transport & Logistics is higher than for Agriculture & Livestock.",
+        expected: "Higher for Transport",
+        narrativeHint: "The urgent need to disseminate news of the Mithril discovery and the subsequent influx of 'eager prospectors' and 'shrewd investors' traveling to Moria create a significant demand for Transport & Logistics services, leading to a higher proportion of days with positive returns. The Agriculture & Livestock sector is not directly impacted by this event and is listed as neutral, implying a steady but not necessarily positive performance compared to the booming transportation sector."
+      },
+      {
+        statement: "The mean return of Glassware & Mirrors is higher than the mean return of Food & Beverages.",
+        expected: "Higher for Glassware",
+        narrativeHint: "The anticipation of wealth and prosperity associated with the Mithril discovery is likely to drive increased spending on non-essential luxury goods. Fine glassware and mirrors, often seen as symbols of wealth and status, would likely experience a surge in demand as individuals and communities celebrate their newfound potential riches, leading to a higher mean return compared to the more stable market for essential goods like Food & Beverages."
+      },
+      {
+        statement: "The proportion of days with negative returns for Medicine & Healing is higher than for Construction Materials & Resources.",
+        expected: "Higher negatives for Medicine",
+        narrativeHint: "The influx of prospectors into the harsh and dangerous environment of Moria, with its 'treacherous mountain passes' and 'makeshift camps,' is likely to lead to numerous accidents and illnesses. The limited medical resources available might become overwhelmed, resulting in a higher proportion of days with negative returns for the Medicine & Healing sector due to the inability to effectively treat all those in need. The demand for Construction Materials & Resources to build and maintain the camps is likely to be more consistent and less prone to negative returns."
+      }
     ]
   },
   {
-    description: "Black longships loom at the mouth of the Anduin. Merchants are raided, wine barrels stolen, iron sunk. Overland routes become congested; wagon drivers demand hazard pay.",
+    description: "Black longships loom at the mouth of the Anduin. Like monstrous shadows against the grey dawn, black longships, bearing the mark of the corsairs, appear at the mouth of the great river Anduin. A wave of fear washes over the coastal settlements as the raiders descend, their cries echoing across the water. Stores of wine and grain are plundered, valuable iron is seized and carelessly cast into the depths, and homes are put to the torch. Overland routes become choked with fearful travelers seeking refuge inland, and wagon drivers, wary of ambush along every bend, demand exorbitant hazard pay for their services, if they dare to travel at all.",
     recommendedTool: "T-Test",
     toolDescription: "Armor & Weapons outperform Transport & Logistics. Use a T-Test to verify.",
     performanceGroups: {
@@ -209,20 +257,33 @@ export const marketSituations: MarketSituation[] = [
       "Agriculture & Livestock have a higher proportion of negative return days than Jewelry & Gems."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Armor & Weapons is higher than the mean return of Transport & Logistics.",
-      "The proportion of days exceeding a predefined volatility threshold for Exploration & Cartography is higher than for Precious Metals.",
-      "The proportion of days with positive returns for Craftsmanship & Technology is higher than for Food & Beverages.",
-      "The mean return of Medicine & Healing is not significantly different from the mean return of Construction Materials & Resources.",
-      "The proportion of days with negative returns for Agriculture & Livestock is higher than for Jewelry & Gems."
+      {
+        statement: "The mean return of Armor & Weapons is higher than the mean return of Transport & Logistics.",
+        expected: "Higher for Armor",
+        narrativeHint: "The violent raids on coastal settlements and the destruction of homes create an immediate and pressing need for defensive measures and weaponry, leading to a significant increase in demand and thus a higher mean return for the Armor & Weapons sector. Conversely, the 'choked' overland routes and the high risk of ambush severely disrupt travel and trade, causing a decline in activity and a lower mean return, potentially even negative, for the Transport & Logistics sector."
+      },
+      {
+        statement: "The proportion of days with negative returns for Exploration & Cartography is higher than for Precious Metals.",
+        expected: "Higher negatives for Exploration & Cartography",
+        narrativeHint: "The hostile raids create an extremely unstable and dangerous environment, making attempts at Exploration & Cartography highly perilous and likely to result in frequent failures or negative outcomes. Precious metals, while affected by unrest, are not directly exposed to these physical dangers and would likely see fewer days with negative returns."
+      },
+      {
+        statement: "The proportion of days with positive returns for Craftsmanship & Technology is higher than for Food & Beverages.",
+        expected: "Higher for Craftsmanship",
+        narrativeHint: "The act of the raiders seizing and discarding 'valuable iron' creates a demand for replacements, stimulating the Craftsmanship & Technology sector as blacksmiths and other artisans are needed to forge new tools and weapons. At the same time, the plundering of 'stores of wine and grain' directly reduces the availability of food and beverages, leading to shortages and negative returns for that sector."
+      },
+      {
+        statement: "The proportion of days with negative returns for Agriculture & Livestock is higher than for Jewelry & Gems.",
+        expected: "Higher negatives for Agriculture",
+        narrativeHint: "The plundering of 'stores of wine and grain' directly and immediately impacts the available food supply, which is closely linked to the performance of the Agriculture & Livestock sector. The disruption caused by the raids and the fear of further attacks could also hinder ongoing agricultural activities and the tending of livestock, leading to a higher proportion of days with negative returns. While some jewelry and gems might be lost or stolen during the raids, the overall impact on the market for these goods is likely less direct and immediate compared to the disruption of the food supply chain."
+      }
     ]
   },
   {
-    description: "A new sapling of the White Tree blossoms in Minas Tirith's courtyard. Pilgrims flood the streets, inns overflow, silver tree amulets sell briskly.",
+    description: "A new sapling of the White Tree blossoms in Minas Tirith's courtyard. A hush falls over the White City, broken only by murmurs of awe and reverence, as a new sapling of the White Tree, symbol of hope and kingship, unfurls its delicate, emerald leaves in the very heart of the Citadel courtyard. Pilgrims from every corner of Gondor and beyond, their hearts filled with devotion, flock to Minas Tirith to witness this blessed miracle, their numbers swelling the city's streets to overflowing. Every inn and lodging house is packed to capacity, and vendors eagerly sell silver amulets bearing the image of the White Tree, crafted in haste to meet the sudden demand.",
     recommendedTool: "T-Test",
     toolDescription: "Food & Beverages outperform Armor & Weapons. Use a T-Test to verify.",
     performanceGroups: {
@@ -238,20 +299,33 @@ export const marketSituations: MarketSituation[] = [
       "Jewelry & Gems have a higher proportion of negative return days than Agriculture & Livestock."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Food & Beverages is higher than the mean return of Armor & Weapons.",
-      "The proportion of days exceeding a predefined volatility threshold for Craftsmanship & Technology is higher than for Precious Metals.",
-      "The proportion of days with positive returns for Medicine & Healing is higher than for Transport & Logistics.",
-      "The mean return of Construction Materials & Resources is not significantly different from the mean return of Exploration & Cartography.",
-      "The proportion of days with negative returns for Jewelry & Gems is higher than for Agriculture & Livestock."
+      {
+        statement: "The mean return of Food & Beverages is higher than the mean return of Armor & Weapons.",
+        expected: "Higher for Food",
+        narrativeHint: "The massive influx of pilgrims to Minas Tirith, resulting in 'every inn and lodging house' being 'packed to capacity,' creates a significant surge in demand for food and beverages, driving up the mean return for that sector. The blossoming of the White Tree is a joyous and peaceful occasion, leading to a low demand for military goods and thus a lower mean return for Armor & Weapons."
+      },
+      {
+        statement: "The proportion of days with positive returns for Craftsmanship & Technology is higher than for Precious Metals.",
+        expected: "Higher for Craftsmanship & Technology",
+        narrativeHint: "The 'sudden demand' for 'silver amulets bearing the image of the White Tree' means craftspeople are working to meet pilgrim needs, likely leading to a higher proportion of days with positive returns for Craftsmanship & Technology. Precious Metals, while used in amulets, have a neutral outlook and might not see the same consistent positive return frequency."
+      },
+      {
+        statement: "The proportion of days with positive returns for Medicine & Healing is higher than for Transport & Logistics.",
+        expected: "Higher for Medicine",
+        narrativeHint: "The mass movement of 'pilgrims from every corner of Gondor and beyond' traveling to Minas Tirith increases the likelihood of travelers encountering illnesses or injuries along their journey, creating a sustained demand for medical services upon their arrival. While the Transport & Logistics sector will also experience increased activity due to the influx of people, the continuous need for medical attention for a large gathering might lead to a higher proportion of days with positive returns for Medicine & Healing."
+      },
+      {
+        statement: "The proportion of days with negative returns for Jewelry & Gems is higher than for Agriculture & Livestock.",
+        expected: "Higher negatives for Jewelry",
+        narrativeHint: "The sudden surge in demand for and production of 'silver amulets bearing the image of the White Tree' is likely to saturate the market for commemorative items, potentially diminishing the appeal and value of more traditional and expensive jewelry, leading to a higher proportion of days with negative returns for the Jewelry & Gems sector. The positive performance of Agriculture & Livestock suggests a strong demand for food to feed the large number of pilgrims, likely resulting in fewer negative returns for that sector."
+      }
     ]
   },
   {
-    description: "In the deep green of Fangorn, the Ents forbid the felling of any living wood. Timber prices crash; stonemasons rejoice; harvests flourish.",
+    description: "In the deep green of Fangorn, the Ents forbid the felling of any living wood. A profound stillness descends upon the edges of Fangorn Forest, broken only by the rustling of leaves and the deep, resonant voices of the ancient Ents. A decree, echoing with the weight of centuries, reverberates through the lands of Men and Dwarves: the felling of any living tree within Fangorn's verdant domain is henceforth forbidden. The price of timber in the markets of Rohan and Eriador plummets as existing stocks flood the market, but stonemasons find themselves in sudden and considerable demand as builders seek alternative materials. Meanwhile, the fertile fields bordering the forest yield a particularly bountiful harvest, perhaps in defiance of the disruption.",
     recommendedTool: "T-Test",
     toolDescription: "Construction Materials & Resources rise because farmers build extra storage halls. Use a T-Test to verify.",
     performanceGroups: {
@@ -267,20 +341,33 @@ export const marketSituations: MarketSituation[] = [
       "Transport & Logistics have a higher proportion of loss days than Armor & Weapons."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Construction Materials & Resources is greater than zero.",
-      "The proportion of days exceeding a predefined volatility threshold for Agriculture & Livestock is lower than for Jewelry & Gems.",
-      "The proportion of days with positive returns for Medicine & Healing is higher than for Food & Beverages.",
-      "The mean return of Exploration & Cartography is not significantly different from the mean return of Precious Metals.",
-      "The proportion of days with losses for Transport & Logistics is higher than for Armor & Weapons."
+      {
+        statement: "The proportion of days with positive returns for Agriculture & Livestock is higher than the proportion of days with positive returns for Food & Beverages.",
+        expected: "Higher for Agriculture & Livestock",
+        narrativeHint: "The 'particularly bountiful harvest' strongly suggests positive performance for the Agriculture & Livestock sector, leading to a higher likelihood of positive return days. The Food & Beverages sector, potentially reliant on resources or trade routes connected to the now forbidden Fangorn, is listed as negative and would likely experience fewer days with positive returns due to these disruptions."
+      },
+      {
+        statement: "The median return of Construction Materials & Resources is higher than the median return of Craftsmanship & Technology that used wood.",
+        expected: "Higher for Construction Materials & Resources",
+        narrativeHint: "The increased demand for alternative building materials directly lifts the Construction Materials & Resources sector. Conversely, any part of the Craftsmanship & Technology sector that traditionally relied on wood from Fangorn would face supply chain disruptions due to the ban, likely resulting in a lower median return compared to the booming Construction Materials & Resources."
+      },
+      {
+        statement: "The proportion of days with positive returns for Medicine & Healing is higher than for Food & Beverages.",
+        expected: "Higher for Medicine",
+        narrativeHint: "The prohibition on felling trees in Fangorn could restrict access to certain traditional medicinal herbs and resources, potentially driving demand for alternative remedies and the expertise of healers who possess knowledge of these alternatives, thus leading to a higher proportion of days with positive returns for the Medicine & Healing sector. The negative impact on Food & Beverages might stem from the disruption of traditional foraging practices within the forest or changes in trade routes that previously relied on forest products."
+      },
+      {
+        statement: "The proportion of days with losses for Transport & Logistics is higher than for Armor & Weapons.",
+        expected: "Higher losses for Transport",
+        narrativeHint: "The closure of Fangorn Forest to logging and potentially to passage disrupts established trade routes that previously relied on this area, leading to difficulties and potential losses for the Transport & Logistics sector. The positive performance of Armor & Weapons might be attributed to increased demand for protection in response to the economic and social disruptions caused by the Ents' decree, potentially leading to fewer instances of losses in that sector compared to the transportation industry."
+      }
     ]
   },
   {
-    description: "Deep inside a rocky cavern, goblin torches flicker over raw gemstones, steaming potions, and ticking gears. Traders pay heavy tolls; precious metals shine.",
+    description: "Deep inside a rocky cavern, goblin torches flicker over raw gemstones. In the echoing depths of a vast, rocky cavern, the flickering, greasy light of goblin torches casts long, dancing shadows over a chaotic scene. Heaps of raw gemstones, their facets catching the dim light, lie scattered alongside bubbling concoctions of dubious origin and strange devices of ticking gears and unknown purpose. Traders, brave or foolish, venture into this subterranean market, haggling fiercely with the goblin denizens and paying hefty tolls to crude gatekeepers for passage. Precious metals, mined from the very rock of the cavern, gleam dully under the torchlight, a testament to the riches hidden within this perilous place.",
     recommendedTool: "T-Test",
     toolDescription: "Precious Metals outperform Agriculture & Livestock. Use a T-Test to verify.",
     performanceGroups: {
@@ -296,20 +383,33 @@ export const marketSituations: MarketSituation[] = [
       "Medicine & Healing have a higher proportion of negative return days than Food & Beverages."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Precious Metals is higher than the mean return of Agriculture & Livestock.",
-      "The proportion of days exceeding a predefined volatility threshold for Jewelry & Gems is higher than for Craftsmanship & Technology.",
-      "The proportion of days with positive returns for Transport & Logistics is higher than for Exploration & Cartography.",
-      "The mean gain of Construction Materials & Resources is not significantly different from the mean gain of Armor & Weapons.",
-      "The proportion of days with negative returns for Medicine & Healing is higher than for Food & Beverages."
+      {
+        statement: "The mean return of Precious Metals is higher than the mean return of Agriculture & Livestock.",
+        expected: "Higher for Precious Metals",
+        narrativeHint: "The description explicitly states that 'precious metals' are being 'mined from the very rock of the cavern,' indicating a direct source and likely a positive mean return for that sector. The subterranean environment of the rocky cavern offers no arable land or grazing areas, making Agriculture & Livestock impossible within this setting, thus resulting in a significantly lower, likely negative or zero, mean return for that sector."
+      },
+      {
+        statement: "The proportion of days with negative returns for Jewelry & Gems is higher than for Craftsmanship & Technology.",
+        expected: "Higher negatives for Jewelry & Gems",
+        narrativeHint: "The 'heaps of raw gemstones' in a chaotic goblin market suggest an unstable supply and risky transactions for Jewelry & Gems, leading to a higher proportion of days with negative returns. Craftsmanship & Technology, while present with 'strange devices', is neutral and likely more stable than the volatile raw gemstone trade."
+      },
+      {
+        statement: "The proportion of days with positive returns for Transport & Logistics is higher than for Exploration & Cartography.",
+        expected: "Higher for Transport",
+        narrativeHint: "The narrative explicitly mentions 'traders' venturing into the cavern and 'paying hefty tolls for passage,' indicating an active flow of goods and people and thus positive returns for the Transport & Logistics sector. The perilous and secretive nature of the goblin market would likely discourage formal Exploration & Cartography, leading to fewer opportunities for positive returns in that sector."
+      },
+      {
+        statement: "The proportion of days with negative returns for Medicine & Healing is higher than for Food & Beverages.",
+        expected: "Higher negatives for Medicine",
+        narrativeHint: "The availability of 'bubbling concoctions of dubious origin' in the goblin market strongly suggests that the remedies offered might be ineffective or even harmful, leading to a higher proportion of days with negative returns for the Medicine & Healing sector. While the Food & Beverages sector is also negative, the description doesn't explicitly portray them as dangerous, implying that the negative returns might stem from scarcity or poor quality rather than actively harmful products, thus potentially resulting in fewer days with negative outcomes compared to the unreliable medical offerings."
+      }
     ]
   },
   {
-    description: "By flickering torchlight, a Dwarf King and an Elf Lord forge an alliance: gemstones for silk, knife steel for crystal harps. Artisans and glassblowers celebrate.",
+    description: "By flickering torchlight, a Dwarf King and an Elf Lord forge an alliance. Under the warm glow of flickering torches held aloft by dwarven and elven attendants, a momentous pact is sealed as a Dwarf King, his beard richly adorned with gems, clasps hands in alliance with an Elf Lord, his eyes reflecting ancient wisdom. The great halls ring with the promise of future trade: finely cut gemstones from the depths of the mountains exchanged for shimmering Elven silks, and the unmatched steel of dwarven blades offered in return for the delicate beauty of crystal Elven harps. Artisans and glassblowers in both realms rejoice at the prospect of new markets and the exchange of skills and artistry.",
     recommendedTool: "T-Test",
     toolDescription: "Craftsmanship & Technology outperform Armor & Weapons. Use a T-Test to verify.",
     performanceGroups: {
@@ -325,20 +425,28 @@ export const marketSituations: MarketSituation[] = [
       "Agriculture & Livestock have a higher proportion of negative return days than Medicine & Healing."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Craftsmanship & Technology is higher than the mean return of Armor & Weapons.",
-      "The proportion of days exceeding a predefined volatility threshold for Precious Metals is lower than for Exploration & Cartography.",
-      "The proportion of days with positive returns for Jewelry & Gems is higher than for Construction Materials & Resources.",
-      "The mean return of Transport & Logistics is not significantly different from the mean return of Food & Beverages.",
-      "The proportion of days with negative returns for Agriculture & Livestock is higher than for Medicine & Healing."
+      {
+        statement: "The mean return of Craftsmanship & Technology is higher than the mean return of Armor & Weapons.",
+        expected: "Higher for Craftsmanship",
+        narrativeHint: "The explicit rejoicing of 'artisans and glassblowers' at the 'prospect of new markets and the exchange of skills and artistry' clearly signals a positive future for the Craftsmanship & Technology sector as a result of the alliance. The forging of an alliance between the Dwarf King and the Elf Lord implies a period of peace and cooperation, which would likely lead to a decrease in demand for weapons and thus a lower mean return for the Armor & Weapons sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Jewelry & Gems is higher than for Construction Materials & Resources.",
+        expected: "Higher for Jewelry",
+        narrativeHint: "The explicit mention of 'finely cut gemstones' being exchanged as a central element of the alliance signifies a strong and active market for these precious items, which are a primary component of the Jewelry & Gems sector, suggesting a higher proportion of days with positive returns. The Construction Materials & Resources sector is listed as neutral, implying a steady level of activity but not necessarily a surge in demand comparable to the trade in gemstones."
+      },
+      {
+        statement: "The proportion of days with negative returns for Agriculture & Livestock is higher than for Medicine & Healing.",
+        expected: "Higher negatives for Agriculture",
+        narrativeHint: "The emphasis on the exchange of high-value crafted goods like 'shimmering Elven silks' might lead to a decrease in demand for more basic, locally produced textiles, potentially negatively impacting the Agriculture & Livestock sector if wool or other agricultural products are key components of local textile production. The Medicine & Healing sector is listed as neutral, suggesting that the alliance does not have any immediate negative consequences for it, thus making negative returns less likely compared to the potentially affected agricultural sector."
+      }
     ]
   },
   {
-    description: "Dense mists swallowed Bree's alleys. Strangers buy up stables and inns; blacksmiths sell locks faster than they forge them. Thieves prowled the darkness.",
+    description: "Dense mists swallowed Bree's alleys. A thick, swirling mist, cold and clammy, descends with an unnatural swiftness upon the town of Bree, swallowing its winding alleys and cobbled streets in an eerie, disorienting silence. Out of the gloom, strangers, cloaked and mysterious, arrive in the common-room of the Prancing Pony, their purses heavy with coin as they discreetly inquire about lodgings and stables. The rhythmic clang of the blacksmith's hammer rings out through the fog as he works feverishly, selling sturdy locks and iron bars faster than he can forge them. Whispers of shadowy figures and stolen goods slither through the darkened, mist-laden streets, fueling a sense of unease and suspicion.",
     recommendedTool: "T-Test",
     toolDescription: "Exploration & Cartography outperform Food & Beverages. Use a T-Test to verify.",
     performanceGroups: {
@@ -354,16 +462,29 @@ export const marketSituations: MarketSituation[] = [
       "Jewelry & Gems have a higher proportion of negative return days than Medicine & Healing."
     ],
     testCriteria: {
-      type: 'T-Test',
       threshold: 0.05,
-      comparisonPeriod: 4
     },
     hypotheses: [
-      "The mean return of Exploration & Cartography is higher than the mean return of Food & Beverages.",
-      "The proportion of days exceeding a predefined volatility threshold for Armor & Weapons is higher than for Transport & Logistics.",
-      "The proportion of days with positive returns for Construction Materials & Resources is higher than for Agriculture & Livestock.",
-      "The mean return of Craftsmanship & Technology is not significantly different from the mean return of Precious Metals.",
-      "The proportion of days with negative returns for Jewelry & Gems is higher than for Medicine & Healing."
+      {
+        statement: "The mean return of Exploration & Cartography is higher than the mean return of Food & Beverages.",
+        expected: "Higher for Exploration",
+        narrativeHint: "The sudden descent of a 'thick, swirling mist' that obscures the town of Bree creates an immediate need for guidance and maps to navigate the disorienting environment, thus driving up the demand and mean return for the Exploration & Cartography sector. The unsettling atmosphere caused by the mist and the arrival of 'cloaked and mysterious' strangers could disrupt the normal routines and trade of food and beverages, potentially leading to a lower mean return for that sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Construction Materials & Resources is higher than for Agriculture & Livestock.",
+        expected: "Higher for Construction",
+        narrativeHint: "The arrival of 'strangers' with 'heavy purses' seeking 'lodgings and stables' indicates a potential increase in demand for renovations, repairs, and possibly new construction to accommodate them, leading to more positive returns for the Construction Materials & Resources sector. The dense mist and the unsettling presence of unknown individuals could disrupt farming activities and the movement of livestock, potentially leading to fewer positive returns for the Agriculture & Livestock sector."
+      },
+      {
+        statement: "The proportion of days with positive returns for Horse & Riding Services is higher than for Food & Beverages.",
+        expected: "Higher for Horse & Riding Services",
+        narrativeHint: "The arrival of 'strangers... inquire about lodgings and stables' directly points to increased demand for stabling, a key component of Horse & Riding Services. The unsettling mist and the arrival of mysterious figures could disrupt the normal flow of trade and consumption of food and beverages, potentially leading to fewer positive return days for that sector."
+      },
+      {
+        statement: "The median return of Craftsmanship & Technology (specifically blacksmithing) is higher than the median return of Jewelry & Gems.",
+        expected: "Higher for Craftsmanship & Technology",
+        narrativeHint: "The blacksmith's 'feverishly' working to meet the high demand for 'sturdy locks and iron bars' indicates a strong positive performance for this specific area of Craftsmanship & Technology. The 'whispers of shadowy figures and stolen goods' suggest a risky environment for valuable items like jewelry, potentially lowering the median return for Jewelry & Gems."
+      }
     ]
   }
 ];
@@ -382,14 +503,14 @@ const initialState: GameState = {
   shownTools: [],
   currentMarketSituation: null,
   marketSituation: {
-    description: '',
-    recommendedTool: null,
-    toolDescription: null,
-    expectedOutcome: null
+    description: marketSituations[0].description,
+    recommendedTool: marketSituations[0].recommendedTool,
+    toolDescription: marketSituations[0].toolDescription,
+    expectedOutcome: marketSituations[0].expectedOutcomes[0]
   },
   priceHistory: {},
   historyLimit: 10,
-  isAutoProgressPaused: false,
+  isAutoProgressPaused: true,
   lastAutoUpdate: 0,
   showScenarioCompletionPopup: false,
   previousCapital: 10000
@@ -479,6 +600,17 @@ function performChiSquareTest(observed: number[][], expected: number[][]): numbe
   
   return 1 / (1 + Math.exp(0.717 * chiSquare));
 }
+
+// Helper function to calculate total portfolio value consistently
+const calculateTotalPortfolioValue = (portfolio: Array<{ sector: Sector; quantity: number }>, capital: number, currentPrices: Record<string, number>) => {
+  const holdingsValue = portfolio.reduce((total, item) => {
+    const currentPrice = currentPrices[item.sector.name] || item.sector.currentPrice;
+    return total + (currentPrice * item.quantity);
+  }, 0);
+  
+  const totalValue = holdingsValue + capital;
+  return Math.round(totalValue * 100) / 100;
+};
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -652,28 +784,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
 
     case 'CLOSE_SCENARIO_COMPLETION_POPUP': {
-      // Calculate current total value when closing the popup using the same method as the UI
-      const holdingsValue = state.portfolio.reduce((total, item) => {
-        const currentPrice = state.currentPrices[item.sector.name] || item.sector.currentPrice;
-        return total + (currentPrice * item.quantity);
-      }, 0);
-      
-      // Add cash to get total portfolio value
-      const rawTotalValue = holdingsValue + state.capital;
-      
-      // Round to 2 decimal places to match UI calculation
-      const totalValue = Math.round(rawTotalValue * 100) / 100;
+      const totalValue = calculateTotalPortfolioValue(state.portfolio, state.capital, state.currentPrices);
       
       console.log('Closing scenario popup. Detailed calculation:');
-      console.log('Holdings value:', holdingsValue);
-      console.log('Cash on hand:', state.capital);
-      console.log('Raw total:', rawTotalValue);
       console.log('Setting previousCapital for next scenario to:', totalValue);
       
       return {
         ...state,
         showScenarioCompletionPopup: false,
-        // Update previousCapital for the next scenario when closing the popup
         previousCapital: totalValue
       };
     }
@@ -806,65 +924,66 @@ export function runDebugStatisticalTests(
   priceHistory: {[sectorName: string]: {prices: number[], timestamp: number}}
 ): void {
   const { testCriteria } = situation;
-  
-  // Group sectors by name
-  const sectorsByName = sectors.reduce((acc, sector) => {
-    if (!acc[sector.name]) acc[sector.name] = [];
-    acc[sector.name].push(sector);
-    return acc;
-  }, {} as Record<string, Sector[]>);
-  
-  // Get price changes for each sector
-  const sectorNames = Object.keys(sectorsByName);
-  
-  const getReturns = (sectorName: string): number[] => {
+
+  // Helper function to get returns for a sector
+  const getReturns = (sectorName: string) => {
     const history = priceHistory[sectorName];
     if (!history || history.prices.length < 2) return [];
     
-    const returns: number[] = [];
+    const returns = [];
     for (let i = 1; i < history.prices.length; i++) {
-      const prevPrice = history.prices[i - 1];
-      const currentPrice = history.prices[i];
-      returns.push((currentPrice - prevPrice) / prevPrice);
+      returns.push((history.prices[i] - history.prices[i-1]) / history.prices[i-1]);
     }
     return returns;
   };
+
+  // Get all sector names
+  const sectorNames = sectors.map(s => s.name);
   
-  switch (testCriteria.type) {
-    case 'T-Test': {
-      // Compare tech sector returns with others
-      const techReturns = situation.performanceGroups.positive
-        .map(symbol => getReturns(symbol))
-        .flat();
-      const otherReturns = situation.performanceGroups.negative
-        .map(symbol => getReturns(symbol))
-        .flat();
-      
-      const pValue = performTTest(techReturns, otherReturns);
-      console.log('Debug T-Test Results:', { pValue, significant: pValue < testCriteria.threshold });
-      break;
-    }
+  // Group sectors by name for easier lookup
+  const sectorsByName = sectorNames.reduce((acc, name) => {
+    acc[name] = sectors.filter(s => s.name === name);
+    return acc;
+  }, {} as {[key: string]: Sector[]});
+
+  // Determine test type based on data
+  const techReturns = situation.performanceGroups.positive
+    .map(symbol => getReturns(symbol))
+    .flat();
+  const otherReturns = situation.performanceGroups.negative
+    .map(symbol => getReturns(symbol))
+    .flat();
+
+  // Check if data is categorical (only contains 0, 1, 2)
+  const isCategoricalData = (data: number[]) => 
+    data.every(v => v === 0 || v === 1 || v === 2);
+
+  const isTechCategorical = isCategoricalData(techReturns);
+  const isOtherCategorical = isCategoricalData(otherReturns);
+
+  // Choose test type based on data type
+  if (isTechCategorical && isOtherCategorical) {
+    // Compare sector distribution changes
+    const observed = sectorNames.map(sectorName => {
+      const sectorGroup = sectorsByName[sectorName];
+      return [
+        sectorGroup.filter(s => situation.performanceGroups.positive.includes(s.name)).length,
+        sectorGroup.filter(s => situation.performanceGroups.neutral.includes(s.name)).length,
+        sectorGroup.filter(s => situation.performanceGroups.negative.includes(s.name)).length
+      ];
+    });
     
-    case 'Chi-Square': {
-      // Compare sector distribution changes
-      const observed = sectorNames.map(sectorName => {
-        const sectorGroup = sectorsByName[sectorName];
-        return [
-          sectorGroup.filter(s => situation.performanceGroups.positive.includes(s.name)).length,
-          sectorGroup.filter(s => situation.performanceGroups.neutral.includes(s.name)).length,
-          sectorGroup.filter(s => situation.performanceGroups.negative.includes(s.name)).length
-        ];
-      });
-      
-      // Calculate expected values (uniform distribution)
-      const expected = sectorNames.map(sectorName => {
-        const groupSize = sectorsByName[sectorName].length;
-        return [groupSize/3, groupSize/3, groupSize/3];
-      });
-      
-      const pValue = performChiSquareTest(observed, expected);
-      console.log('Debug Chi-Square Test Results:', { pValue, significant: pValue < testCriteria.threshold });
-      break;
-    }
+    // Calculate expected values (uniform distribution)
+    const expected = sectorNames.map(sectorName => {
+      const groupSize = sectorsByName[sectorName].length;
+      return [groupSize/3, groupSize/3, groupSize/3];
+    });
+    
+    const pValue = performChiSquareTest(observed, expected);
+    console.log('Debug Chi-Square Test Results:', { pValue, significant: pValue < testCriteria.threshold });
+  } else {
+    // Use T-Test for numerical data
+    const pValue = performTTest(techReturns, otherReturns);
+    console.log('Debug T-Test Results:', { pValue, significant: pValue < testCriteria.threshold });
   }
 } 

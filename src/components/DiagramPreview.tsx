@@ -68,10 +68,6 @@ export function generateHypothesisData(metric: string, sector: string): number[]
     return binomial(params.probability!, 200);
   }
   
-  if (metric === 'distribution_return_categories') {
-    return generateCategoricalData(params.categoricalDistribution!, 200);
-  }
-  
   // Fallback
   return normal(0.05, 0.04, 200);
 }
@@ -121,7 +117,7 @@ const SingleMetricChart: React.FC<SingleMetricChartProps> = ({
     counts = [0, 0];
     rawData.forEach(v => { if (v === 1) counts[1]++; else counts[0]++; });
     isCategorical = true;
-  } else if (metric === 'distribution_return_categories' || type === 'categorical' || (rawData.length > 0 && rawData.every(v => v === 0 || v === 1 || v === 2))) {
+  } else if (type === 'categorical' || (rawData.length > 0 && rawData.every(v => v === 0 || v === 1 || v === 2))) {
     categories = ['Loss', 'Neutral', 'Gain'];
     counts = [0, 0, 0];
     rawData.forEach(v => { 
@@ -333,11 +329,6 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
         const values = binomial(params.probability!, 200);
         setData(values.map((value, index) => ({ x: index, y: value })));
       }
-      
-      if (selectedMetric === 'distribution_return_categories') {
-        const values = generateCategoricalData(params.categoricalDistribution!, 200);
-        setData(values.map((value, index) => ({ x: index, y: value })));
-      }
     }
   }, [selectedSector, selectedMetric, state.currentSituationIndex]);
 
@@ -419,27 +410,6 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
       countsB = [0, 0];
       dataA.forEach(v => { if (v === 1) countsA[1]++; else countsA[0]++; });
       dataB.forEach(v => { if (v === 1) countsB[1]++; else countsB[0]++; });
-    } else if (
-      metricX?.id === 'distribution_return_categories' || 
-      metricY?.id === 'distribution_return_categories' || 
-      metricX?.type === 'categorical' || 
-      metricY?.type === 'categorical' || 
-      ((dataA.length > 0 && dataA.every(v => v === 0 || v === 1 || v === 2)) && 
-       (dataB.length > 0 && dataB.every(v => v === 0 || v === 1 || v === 2)))
-    ) {
-      categories = ['Loss', 'Neutral', 'Gain'];
-      countsA = [0, 0, 0];
-      countsB = [0, 0, 0];
-      dataA.forEach(v => { 
-        if (v === 0) countsA[0]++; 
-        else if (v === 1) countsA[1]++; 
-        else if (v === 2) countsA[2]++; 
-      });
-      dataB.forEach(v => { 
-        if (v === 0) countsB[0]++; 
-        else if (v === 1) countsB[1]++; 
-        else if (v === 2) countsB[2]++; 
-      });
     } else {
       // Fallback: numeric bins
       categories = ['Low', 'Medium', 'High'];

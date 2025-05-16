@@ -180,17 +180,14 @@ export const ScenarioAnalysisPopup: React.FC<ScenarioAnalysisPopupProps> = ({ op
   
   // Calculate current portfolio value (holdings + cash) - ensure it matches the UI value exactly
   const currentPortfolioValue = useMemo(() => {
-    // Calculate the total value of holdings
     const holdingsValue = state.portfolio.reduce((total, item) => {
-      return total + (item.quantity * item.sector.currentPrice);
+      const currentPrice = state.currentPrices[item.sector.name] || item.sector.currentPrice;
+      return total + (currentPrice * item.quantity);
     }, 0);
     
-    // Add cash to get total portfolio value
     const totalValue = holdingsValue + state.capital;
-    
-    // Round to 2 decimal places to ensure consistency with UI
     return Math.round(totalValue * 100) / 100;
-  }, [state.portfolio, state.capital]);
+  }, [state.portfolio, state.capital, state.currentPrices]);
   
   // Get the previous portfolio value from the start of this scenario
   const previousPortfolioValue = state.previousCapital;
@@ -309,6 +306,30 @@ export const ScenarioAnalysisPopup: React.FC<ScenarioAnalysisPopupProps> = ({ op
     }
   };
   
+  // Event-Listener für das Schließen aller Popups
+  useEffect(() => {
+    const handleCloseAllPopups = () => {
+      if (open) {
+        onClose();
+      }
+    };
+    const handleCloseScenarioAnalysisPopup = () => {
+      if (open) {
+        onClose();
+      }
+    };
+    
+    // Event-Listener hinzufügen
+    window.addEventListener('closeAllPopups', handleCloseAllPopups);
+    window.addEventListener('closeScenarioAnalysisPopup', handleCloseScenarioAnalysisPopup);
+    
+    // Event-Listener entfernen, wenn die Komponente unmountet
+    return () => {
+      window.removeEventListener('closeAllPopups', handleCloseAllPopups);
+      window.removeEventListener('closeScenarioAnalysisPopup', handleCloseScenarioAnalysisPopup);
+    };
+  }, [open, onClose]);
+  
   return (
     <Dialog
       open={open}
@@ -316,13 +337,15 @@ export const ScenarioAnalysisPopup: React.FC<ScenarioAnalysisPopupProps> = ({ op
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        style: {
+        sx: {
           backgroundColor: '#1e1e1e',
           color: 'white',
           height: '90vh',
-          position: 'absolute',
+          maxHeight: '90vh',
+          position: 'fixed',
           top: '80px',
           overflow: 'hidden',
+          zIndex: 2000
         }
       }}
     >
@@ -363,7 +386,7 @@ export const ScenarioAnalysisPopup: React.FC<ScenarioAnalysisPopupProps> = ({ op
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent sx={{ p: 2, height: 'calc(90vh - 64px)', overflow: 'auto' }}>
+      <DialogContent sx={{ p: 2, height: '100%', maxHeight: 'calc(90vh - 64px)', overflowY: 'auto' }}>
         {/* Profit/Loss Overview */}
         <Paper 
           sx={{ 
