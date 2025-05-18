@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import introVideo from './Audio/Intro Statistic Game.mp4';
+import introVideo from './Audio/Intro.mp4';
 
 interface StartupVideoPopupProps {
   open: boolean;
