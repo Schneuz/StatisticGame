@@ -43,29 +43,8 @@ export const SectorPurchase: React.FC<SectorPurchaseProps> = ({
     setQuantity(typeof value === 'number' ? value : value[0]);
   };
 
-  const handleIncrement = () => {
-    if (quantity < maxQuantity) {
-      setQuantity(quantity + 1);
-    }
-  };
-
-  const handleDecrement = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
-    }
-  };
-
   const handleMax = () => {
     setQuantity(maxQuantity);
-  };
-
-  const handleSectorClick = (sector: Sector) => {
-    // Toggle selection
-    if (selectedSector && selectedSector.name === sector.name) {
-      onSectorSelect(null);
-    } else {
-      onSectorSelect(sector);
-    }
   };
 
   return (

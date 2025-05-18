@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import gandalfVideo from './Audio/Gandalf.mp4';
+import introVideo from './Audio/Intro Statistic Game.mp4';
 
 interface StartupVideoPopupProps {
   open: boolean;
@@ -36,7 +36,7 @@ export const StartupVideoPopup: React.FC<StartupVideoPopupProps> = ({ open, onCl
           muted
           style={{ display: 'block', width: '100%', borderRadius: 8, background: 'black' }}
         >
-          <source src={gandalfVideo} type="video/mp4" />
+          <source src={introVideo} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </DialogContent>

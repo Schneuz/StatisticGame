@@ -21,7 +21,12 @@ import { useGame } from '../contexts/GameContext';
 import { ActionTracker, PlayerAction, ScenarioPerformance } from '../models/ActionTracker';
 import { getSectorPerformanceGroup } from '../models/SectorModel';
 import { PerformanceGroup } from '../models/DataGenerationModel';
-import { validateMetrics, validateTestForMetrics, MetricType } from '../utils/MetricsValidator';
+import { validateMetrics, validateTestForMetrics, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getMetricType, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  MetricType 
+} from '../utils/MetricsValidator';
 import { log } from '../utils/logging';
 
 interface PlayerActionAnalysisProps {
@@ -82,7 +87,7 @@ const getBackgroundColor = (action: PlayerAction): string => {
 };
 
 // Funktion zum Rendern der Aktionsdetails
-const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): React.ReactNode => {
+const renderActionDetails = (action: PlayerAction, expectedSectors: string[], scenarioIndex: number): React.ReactNode => {
   switch (action.type) {
     case 'sector_selection':
       return (
@@ -116,30 +121,18 @@ const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): R
         </Box>
       );
     case 'metric_selection':
-      // Prüfe, ob die gewählten Metriken mit den erwarteten übereinstimmen
-      let metricsAreCorrect = true;
-      let expectedMetrics: string[] = [];
-      const metrics = action.details.metrics;
-      // Versuche, die erwarteten Metriken aus der Hypothese zu extrahieren
-      if (expectedSectors.length > 0) {
-        // Beispiel: Wenn in der Hypothese "mean return" und "median return" vorkommen, dann sind das die erwarteten Metriken
-        const hypothesis = expectedSectors.join(' ');
-        if (hypothesis.toLowerCase().includes('mean return') && hypothesis.toLowerCase().includes('median return')) {
-          expectedMetrics = ['Mean Return', 'Median Return'];
-        } else if (hypothesis.toLowerCase().includes('mean return')) {
-          expectedMetrics = ['Mean Return'];
-        } else if (hypothesis.toLowerCase().includes('median return')) {
-          expectedMetrics = ['Median Return'];
-        }
-      }
+      // Prüfe, ob die Metriken mit der Hypothese übereinstimmen
+      const metricsAreValid = action.details.isCorrect !== false;
+      const metrics = action.details.metrics || [];
+      
       return (
         <Box>
           <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-            {action.details.metrics && action.details.metrics.length > 1 ? 'Selected metrics:' : 'Metric:'}
+            {metrics && metrics.length > 1 ? 'Selected metrics:' : 'Metric:'}
           </Typography>
-          {action.details.metrics && action.details.metrics.length > 1 ? (
+          {metrics && metrics.length > 1 ? (
             <Box component="ul" sx={{ m: 0, pl: 2 }}>
-              {action.details.metrics.map((metric: string, idx: number) => (
+              {metrics.map((metric: string, idx: number) => (
                 <Typography component="li" key={metric + idx} variant="body2" sx={{ color: '#ddd' }}>
                   {metric}
                 </Typography>
@@ -147,13 +140,13 @@ const renderActionDetails = (action: PlayerAction, expectedSectors: string[]): R
             </Box>
           ) : (
             <Typography variant="body2" sx={{ color: '#ddd' }}>
-              {action.details.metrics && action.details.metrics[0]}
+              {metrics && metrics[0]}
             </Typography>
           )}
           <Typography variant="body2" sx={{ color: '#aaa', mt: 0.5 }}>
             Data type: {action.details.dataType || 'Unknown'}
           </Typography>
-          {!action.details.isCorrect && action.details.errorMessage && (
+          {!metricsAreValid && action.details.errorMessage && (
             <Paper sx={{ 
               mt: 1,
               p: 1,
@@ -435,9 +428,6 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
       // Verwende die vollständigen Szenariobeschreibungen aus dem Game-Context
       const scenarioDescription = marketSituation.description;
       
-      // Get action summary
-      const actionSummary = ActionTracker.getActionSummary();
-      
       // Create dummy sector performance data
       const allSectors = [
         'Food & Beverages', 'Craftsmanship & Technology', 'Transport & Logistics',
@@ -598,7 +588,7 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
                     </Box>
                     
                     <Box sx={{ pl: 2 }}>
-                      {renderActionDetails(action, expectedSectors)}
+                      {renderActionDetails(action, expectedSectors, situationIndex)}
                     </Box>
                   </ListItem>
                 ))}
@@ -629,7 +619,7 @@ export const PlayerActionAnalysis: React.FC<PlayerActionAnalysisProps> = React.m
                 </Box>
                 
                 <Box sx={{ pl: 2 }}>
-                  {renderActionDetails(action, [])}
+                  {renderActionDetails(action, [], situationIndex)}
                 </Box>
               </ListItem>
             ));

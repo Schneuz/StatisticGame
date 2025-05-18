@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import ScienceIcon from '@mui/icons-material/Science';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { MetricCard } from './MetricCard';
@@ -383,13 +382,36 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
     const data2 = getData(slotB, sectorB);
     
     // Generate test result data
-    const testResultData = runAndLogStatisticalTest(
+    runAndLogStatisticalTest(
       testTypeForModel,
-      hypothesis,
-      data1,
-      data2,
-      0.05
+      [slotA, slotB], // Pass the metrics as an array
+      [sectorA, sectorB] // Pass the sectors as an array
     );
+
+    // Generate our own test result data since runAndLogStatisticalTest only returns success/failure
+    let testResultData: TestResult;
+    if (testType === 'ttest') {
+      const result = performTTest(data1, data2);
+      testResultData = {
+        pValue: result.pValue,
+        statistic: result.statistic,
+        significant: result.pValue < 0.05,
+        testType: 'T-Test',
+        isInappropriate: !isAppropriate
+      };
+    } else {
+      // For chi-square, we need to convert the data to counts
+      const counts1 = getCategoricalCounts(data1);
+      const counts2 = getCategoricalCounts(data2);
+      const result = performChiSquareTest(counts1, counts2);
+      testResultData = {
+        pValue: result.pValue,
+        statistic: result.statistic,
+        significant: result.pValue < 0.05,
+        testType: 'Chi-Square',
+        isInappropriate: !isAppropriate
+      };
+    }
 
     // Generate interpretation text
     const interpretation = getTestInterpretation(
@@ -403,6 +425,84 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
     
     // Store the test results
     setTestResult(testResultData);
+  };
+
+  // Helper functions for test calculations
+  const performTTest = (group1: number[], group2: number[]): { pValue: number, statistic: number } => {
+    if (group1.length < 2 || group2.length < 2) return { pValue: 1, statistic: 0 };
+
+    const mean1 = group1.reduce((sum, val) => sum + val, 0) / group1.length;
+    const mean2 = group2.reduce((sum, val) => sum + val, 0) / group2.length;
+    
+    const sd1 = Math.sqrt(group1.reduce((sum, val) => sum + Math.pow(val - mean1, 2), 0) / group1.length);
+    const sd2 = Math.sqrt(group2.reduce((sum, val) => sum + Math.pow(val - mean2, 2), 0) / group2.length);
+    
+    if (sd1 === 0 && sd2 === 0) return { pValue: 1, statistic: 0 };
+    
+    const n1 = group1.length;
+    const n2 = group2.length;
+    
+    const pooledStandardError = Math.sqrt((sd1 * sd1 / n1) + (sd2 * sd2 / n2));
+    if (pooledStandardError === 0) return { pValue: 1, statistic: 0 };
+    
+    const tStatistic = Math.abs(mean1 - mean2) / pooledStandardError;
+    // Simple p-value approximation using logistic function
+    const pValue = 1 / (1 + Math.exp(0.717 * tStatistic));
+    
+    return { pValue, statistic: tStatistic };
+  };
+
+  const getCategoricalCounts = (data: number[]): number[] => {
+    const counts = [0, 0, 0]; // For categories 0, 1, 2
+    for (const val of data) {
+      if (val >= 0 && val <= 2) {
+        counts[Math.floor(val)]++;
+      }
+    }
+    return counts;
+  };
+
+  const performChiSquareTest = (observed1: number[], observed2: number[]): { pValue: number, statistic: number } => {
+    // Create observed array
+    const observed = [observed1, observed2];
+    const rows = 2; // two groups
+    const cols = observed1.length;
+    
+    // Calculate row and column sums
+    const rowSums = observed.map(row => row.reduce((sum, val) => sum + val, 0));
+    const colSums = Array(cols).fill(0);
+    
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        colSums[j] += observed[i][j];
+      }
+    }
+    
+    const total = rowSums.reduce((sum, val) => sum + val, 0);
+    
+    // Calculate expected values
+    const expected = Array(rows).fill(0).map(() => Array(cols).fill(0));
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        expected[i][j] = (rowSums[i] * colSums[j]) / total;
+      }
+    }
+    
+    // Calculate chi-square statistic
+    let chiSquare = 0;
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        if (expected[i][j] !== 0) {
+          const diff = observed[i][j] - expected[i][j];
+          chiSquare += (diff * diff) / expected[i][j];
+        }
+      }
+    }
+    
+    // Simple p-value approximation using logistic function
+    const pValue = 1 / (1 + Math.exp(0.717 * chiSquare));
+    
+    return { pValue, statistic: chiSquare };
   };
 
   // Generate interpretation of test results
@@ -775,7 +875,7 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
                           <Typography variant="subtitle1" sx={{ color: '#43e294', fontWeight: 'bold', fontSize: '1.1rem' }}>
                             {testResult.statistic.toFixed(3)}
                           </Typography>
-                          <Tooltip title="Was ist die Teststatistik?">
+                          <Tooltip title="What is the test statistic?">
                             <InfoOutlinedIcon sx={{ color: '#43e294', cursor: 'pointer', fontSize: 20 }} onClick={() => setOpenTestStatisticInfo(true)} />
                           </Tooltip>
                         </Box>
@@ -783,9 +883,9 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
                           <DialogTitle>Test Statistic Info</DialogTitle>
                           <DialogContent>
                             <Typography>
-                              Die Teststatistik ist eine Zahl, die zeigt, wie groß der Unterschied zwischen zwei Gruppen ist. Je größer die Zahl, desto größer der Unterschied.
+                              The test statistic is a number that shows the size of the difference between two groups. The larger the number, the greater the difference.
                               <br /><br />
-                              <b>Beispiel:</b> Wenn Gruppe A einen Durchschnitt von 10 hat und Gruppe B einen Durchschnitt von 5, ist die Teststatistik größer als wenn beide Gruppen fast gleich sind.
+                              <b>Example:</b> If Group A has an average of 10 and Group B has an average of 5, the test statistic will be larger than if both groups were almost equal.
                             </Typography>
                           </DialogContent>
                         </Dialog>
@@ -796,7 +896,7 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
                           <Typography variant="subtitle1" sx={{ color: '#43e294', fontWeight: 'bold', fontSize: '1.1rem' }}>
                             {testResult.pValue.toFixed(3)}
                           </Typography>
-                          <Tooltip title="Was ist der p-Wert?">
+                          <Tooltip title="What is the p-value?">
                             <InfoOutlinedIcon sx={{ color: '#43e294', cursor: 'pointer', fontSize: 20 }} onClick={() => setOpenPValueInfo(true)} />
                           </Tooltip>
                         </Box>
@@ -804,9 +904,9 @@ export const AnalysisPopup: React.FC<AnalysisPopupProps> = ({ open, onClose, hyp
                           <DialogTitle>P-Value Info</DialogTitle>
                           <DialogContent>
                             <Typography>
-                              Der p-Wert zeigt, wie wahrscheinlich es ist, dass der Unterschied zwischen zwei Gruppen nur Zufall ist. Ein kleiner p-Wert (z.B. unter 0,05) bedeutet: Es ist sehr wahrscheinlich ein echter Unterschied.
+                              The p-value shows how likely it is that the difference between two groups is just due to chance. A small p-value (e.g., below 0.05) means: It's very likely a real difference.
                               <br /><br />
-                              <b>Beispiel:</b> Ein p-Wert von 0,01 heißt: Es gibt nur 1% Wahrscheinlichkeit, dass das Ergebnis Zufall ist.
+                              <b>Example:</b> A p-value of 0.01 means: There's only a 1% probability that the result is due to chance.
                             </Typography>
                           </DialogContent>
                         </Dialog>

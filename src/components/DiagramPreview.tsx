@@ -6,11 +6,9 @@ import { Metric } from '../types';
 import { 
   normal, 
   binomial, 
-  generateCategoricalData,
   getMetricParameters
 } from '../models/DataGenerationModel';
 import { getSectorPerformanceGroup } from '../models/SectorModel';
-import { useGame } from '../contexts/GameContext';
 
 interface DiagramPreviewProps {
   variableX: string;
@@ -18,11 +16,6 @@ interface DiagramPreviewProps {
   metrics: Metric[];
   sectorA?: string;
   sectorB?: string;
-}
-
-interface DataPoint {
-  x: number;
-  y: number;
 }
 
 // Consistent style variables
@@ -59,17 +52,46 @@ export function generateHypothesisData(metric: string, sector: string): number[]
   // Get appropriate parameters based on metric and performance group
   const params = getMetricParameters(metric, performanceGroup);
   
-  // Generate data based on the metric type with appropriate parameters
-  if (metric === 'mean_return' || metric === 'median_return' || metric === 'mean_gain' || metric === 'mean_loss') {
-    return normal(params.mean!, params.stdDev!, 200);
+  // Generate a sector-specific seed value using the new method from DataGenerationModel
+  const sectorSeed = (() => {
+    let seed = 0;
+    for (let i = 0; i < sector.length; i++) {
+      const charCode = sector.charCodeAt(i);
+      seed += charCode * (i + 1) * 17;
+      seed = (seed * 31) % 1000000;
+    }
+    return seed;
+  })();
+  
+  // Use the same complex variation as in DataGenerationModel
+  const variation = Math.sin(sectorSeed * 0.01) * 0.15;
+  
+  // Adjusted parameters with sector-specific variation
+  let adjustedParams = { ...params };
+  if (adjustedParams.mean !== undefined) {
+    adjustedParams.mean = adjustedParams.mean * (1 + variation);
+  }
+  if (adjustedParams.stdDev !== undefined) {
+    adjustedParams.stdDev = adjustedParams.stdDev * (1 + (Math.cos(sectorSeed * 0.02) * 0.1));
+  }
+  if (adjustedParams.probability !== undefined) {
+    const probVariation = Math.sin((sectorSeed + 500) * 0.01) * 0.15;
+    adjustedParams.probability = Math.max(0, Math.min(1, adjustedParams.probability + probVariation));
   }
   
-  if (metric === 'proportion_positive_days' || metric === 'proportion_negative_days' || metric === 'proportion_high_volatility_days') {
-    return binomial(params.probability!, 200);
+  // Generate data based on the metric type with appropriate parameters
+  // Pass the sector name to the data generation functions
+  if (metric === 'mean_return' || metric === 'median_return' || metric === 'mean_gain' || metric === 'mean_loss') {
+    return normal(adjustedParams.mean!, adjustedParams.stdDev!, 200, sector);
+  }
+  
+  if (metric === 'proportion_positive_days' || metric === 'proportion_negative_days') {
+    // Volatility metric was removed
+    return binomial(adjustedParams.probability!, 200, sector);
   }
   
   // Fallback
-  return normal(0.05, 0.04, 200);
+  return normal(0.05 * (1 + variation), 0.04 * (1 + variation), 200, sector);
 }
 
 /**
@@ -247,6 +269,14 @@ function binCounts(arr: number[]): number[] {
   }, [0, 0, 0]);
 }
 
+// Interface für Linien-Regression
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface RegressionLine {
+  points: {x: number, y: number}[];
+  slope: number;
+  intercept: number;
+}
+
 export const DiagramPreview: React.FC<DiagramPreviewProps> = ({ 
   variableX, 
   variableY, 
@@ -272,10 +302,13 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
   // State for diagram type
   const [diagramType, setDiagramType] = useState<'numerical' | 'categorical' | null>(null);
 
-  const { state } = useGame();
-  const [selectedSector, setSelectedSector] = useState<string | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [data, setData] = useState<DataPoint[]>([]);
+  // Refs to maintain data cache
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const dataCache = useRef<any>({});
+  
+  // Refs for scatter chart
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const scatterChartRef = useRef<any>(null);
 
   // Clear cache when variableX or sectorA changes
   useEffect(() => {
@@ -311,26 +344,6 @@ export const DiagramPreview: React.FC<DiagramPreviewProps> = ({
     lastMetricXId.current = currentMetricXId;
     lastMetricYId.current = currentMetricYId;
   }, [metricX?.id, metricY?.id]);
-
-  useEffect(() => {
-    if (selectedSector && selectedMetric) {
-      const performanceGroup = getSectorPerformanceGroup(selectedSector, state.currentSituationIndex);
-      
-      // Get appropriate parameters based on metric and performance group
-      const params = getMetricParameters(selectedMetric, performanceGroup);
-      
-      // Generate data based on the metric type with appropriate parameters
-      if (selectedMetric === 'mean_return' || selectedMetric === 'median_return' || selectedMetric === 'mean_gain' || selectedMetric === 'mean_loss') {
-        const values = normal(params.mean!, params.stdDev!, 200);
-        setData(values.map((value, index) => ({ x: index, y: value })));
-      }
-      
-      if (selectedMetric === 'proportion_positive_days' || selectedMetric === 'proportion_negative_days' || selectedMetric === 'proportion_high_volatility_days') {
-        const values = binomial(params.probability!, 200);
-        setData(values.map((value, index) => ({ x: index, y: value })));
-      }
-    }
-  }, [selectedSector, selectedMetric, state.currentSituationIndex]);
 
   /**
    * Get raw data for a metric-sector combination

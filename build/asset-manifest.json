@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.js": "./static/js/main.03dd9186.js",
+    "static/media/Intro Statistic Game.mp4": "./static/media/Intro Statistic Game.c20596abd20ff2f244f4.mp4",
+    "static/media/Sonnengebranntes Dorfbild in Rohan.png": "./static/media/Sonnengebranntes Dorfbild in Rohan.f798f503e0a82a2b96d2.png",
+    "static/media/Allianz im nächtlichen Wald.png": "./static/media/Allianz im nächtlichen Wald.156c3ad8c9baf4574f0e.png",
+    "static/media/Minas Tirith im Morgengold.png": "./static/media/Minas Tirith im Morgengold.84478496844e2037ffe3.png",
+    "static/media/Ernteglanz im Auenland.png": "./static/media/Ernteglanz im Auenland.ed8e40ef48e15dd4f7df.png",
+    "static/media/Glanzendes Mithril in Zwergenhalle.png": "./static/media/Glanzendes Mithril in Zwergenhalle.22ded7f4a1d4023f812f.png",
+    "static/media/Entmoot im Alten Wald.png": "./static/media/Entmoot im Alten Wald.f4caa59865f0d231f927.png",
+    "static/media/Minas Tirith bei Dämmerung.png": "./static/media/Minas Tirith bei Dämmerung.6ac5f3f46f1bf385f87b.png",
+    "static/media/Küsten-Dorf im Belagerungsflammen.png": "./static/media/Küsten-Dorf im Belagerungsflammen.c88deff84e564afdf72b.png",
+    "static/media/Nebel über Bree bei Nacht.png": "./static/media/Nebel über Bree bei Nacht.07bab25e3183aaac03b3.png",
+    "static/media/Unterirdischer Goblinmarkt im Nebel.png": "./static/media/Unterirdischer Goblinmarkt im Nebel.b3b356cf112e9a2b60b8.png",
+    "static/media/Sternenfest in Rivendel bei Nacht.png": "./static/media/Sternenfest in Rivendel bei Nacht.9cc3668bba260dca8507.png",
+    "index.html": "./index.html",
+    "main.03dd9186.js.map": "./static/js/main.03dd9186.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.03dd9186.js"
+  ]
+}

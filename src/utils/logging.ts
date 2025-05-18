@@ -1,19 +1,19 @@
 /**
- * Zentralisierte Logging-Funktion, die in Produktion deaktiviert ist
+ * Centralized logging function that is disabled in production
  * 
- * @param message - Die Logging-Nachricht
- * @param data - Optionale Daten für das Logging
+ * @param message - The logging message
+ * @param data - Optional data for logging
  */
 export const log = process.env.NODE_ENV === 'production' 
   ? () => {} 
   : (message: string, ...data: any[]) => console.log(message, ...data);
 
 /**
- * Logging-Funktion für Warnungen, auch in Produktion aktiv
+ * Logging function for warnings, active even in production
  */
 export const warn = (message: string, ...data: any[]) => console.warn(message, ...data);
 
 /**
- * Logging-Funktion für Fehler, auch in Produktion aktiv
+ * Logging function for errors, active even in production
  */
 export const error = (message: string, ...data: any[]) => console.error(message, ...data); 

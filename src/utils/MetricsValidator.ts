@@ -1,5 +1,7 @@
+import { marketSituations } from '../contexts/GameContext';
+
 /**
- * Typen von Metriken
+ * Types of metrics
  */
 export enum MetricType {
   NUMERICAL = 'numerical',
@@ -8,7 +10,7 @@ export enum MetricType {
 }
 
 /**
- * Ergebnis der Metrik-Validierung
+ * Result of metric validation
  */
 export interface MetricValidationResult {
   isValid: boolean;
@@ -17,7 +19,7 @@ export interface MetricValidationResult {
 }
 
 /**
- * Liste der numerischen Metriken
+ * List of numerical metrics
  */
 export const NUMERICAL_METRICS = [
   'Mean Return', 
@@ -27,7 +29,7 @@ export const NUMERICAL_METRICS = [
 ];
 
 /**
- * Liste der kategorischen Metriken
+ * List of categorical metrics
  */
 export const CATEGORICAL_METRICS = [
   'Positive Return Days', 
@@ -36,7 +38,7 @@ export const CATEGORICAL_METRICS = [
 ];
 
 /**
- * Bestimmt den Typ einer Metrik
+ * Determines the type of a metric
  */
 export function getMetricType(metricName: string): MetricType {
   if (NUMERICAL_METRICS.includes(metricName)) {
@@ -48,7 +50,7 @@ export function getMetricType(metricName: string): MetricType {
 }
 
 /**
- * Prüft, ob alle Metriken vom gleichen Typ sind
+ * Checks if all metrics are of the same type
  */
 export function areAllSameType(metrics: string[]): boolean {
   if (metrics.length <= 1) return true;
@@ -58,12 +60,12 @@ export function areAllSameType(metrics: string[]): boolean {
 }
 
 /**
- * Validiert die gewählten Metriken
- * @param metrics - Liste der gewählten Metriken
- * @returns ValidationResult mit Informationen über die Validität
+ * Validates the selected metrics
+ * @param metrics - List of selected metrics
+ * @returns ValidationResult with information about validity
  */
 export function validateMetrics(metrics: string[]): MetricValidationResult {
-  // Wenn keine Metriken gewählt wurden
+  // If no metrics were selected
   if (!metrics || metrics.length === 0) {
     return {
       isValid: false,
@@ -72,7 +74,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
     };
   }
   
-  // Wenn nur eine Metrik gewählt wurde
+  // If only one metric was selected
   if (metrics.length === 1) {
     return {
       isValid: true,
@@ -80,7 +82,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
     };
   }
   
-  // Wenn zwei identische Metriken gewählt wurden
+  // If two identical metrics were selected
   if (metrics.length === 2 && metrics[0] === metrics[1]) {
     return {
       isValid: true,
@@ -88,12 +90,12 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
     };
   }
   
-  // Wenn zwei verschiedene Metriken gewählt wurden
+  // If two different metrics were selected
   if (metrics.length === 2) {
     const typeA = getMetricType(metrics[0]);
     const typeB = getMetricType(metrics[1]);
     
-    // Beide numerisch, aber unterschiedlich
+    // Both numerical, but different
     if (typeA === MetricType.NUMERICAL && typeB === MetricType.NUMERICAL) {
       return {
         isValid: false,
@@ -102,7 +104,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
       };
     }
     
-    // Beide kategorisch, aber unterschiedlich
+    // Both categorical, but different
     if (typeA === MetricType.CATEGORICAL && typeB === MetricType.CATEGORICAL) {
       return {
         isValid: false,
@@ -111,7 +113,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
       };
     }
     
-    // Gemischte Typen (numerisch + kategorisch)
+    // Mixed types (numerical + categorical)
     return {
       isValid: false,
       errorMessage: "Use the same metrics, and don't mix up categorical and numerical metrics.",
@@ -119,7 +121,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
     };
   }
   
-  // Mehr als zwei Metriken (sollte nicht vorkommen)
+  // More than two metrics (should not occur)
   return {
     isValid: false,
     errorMessage: "Too many metrics selected. Please select only one or two metrics.",
@@ -128,7 +130,7 @@ export function validateMetrics(metrics: string[]): MetricValidationResult {
 }
 
 /**
- * Validiert, ob der gewählte Testtyp für die Metriktypen geeignet ist
+ * Validates if the selected test type is appropriate for the metric types
  */
 export function validateTestForMetrics(
   testType: string,
@@ -167,5 +169,92 @@ export function validateTestForMetrics(
   return {
     isValid: true,
     metricType
+  };
+}
+
+/**
+ * Validates if the selected metrics match the metric of the current hypothesis
+ * @param selectedMetrics - Array of metrics selected by the player
+ * @param scenarioIndex - Index of the current scenario
+ * @param hypothesisIndex - Index of the current hypothesis (optional)
+ * @returns ValidationResult with information about validity
+ */
+export function validateMetricsMatchHypothesis(
+  selectedMetrics: string[],
+  scenarioIndex: number,
+  hypothesisIndex?: number
+): MetricValidationResult {
+  // First check the basic validity of the metrics
+  const basicValidation = validateMetrics(selectedMetrics);
+  if (!basicValidation.isValid) {
+    return basicValidation;
+  }
+
+  // Get the current scenario
+  const scenario = marketSituations[scenarioIndex];
+  if (!scenario) {
+    return {
+      isValid: false,
+      errorMessage: "Invalid scenario index.",
+      metricType: MetricType.MIXED
+    };
+  }
+
+  // If no hypothesis was specified, we take the first one
+  const hypothesis = hypothesisIndex !== undefined 
+    ? scenario.hypotheses[hypothesisIndex] 
+    : scenario.hypotheses[0];
+
+  if (!hypothesis) {
+    return {
+      isValid: false,
+      errorMessage: "Invalid hypothesis index.",
+      metricType: MetricType.MIXED
+    };
+  }
+
+  // Standardize the metric name for comparison
+  const standardizeMetricName = (name: string): string => {
+    return name.toLowerCase().replace(/\s+/g, ' ').trim();
+  };
+
+  // Get the expected metric from the hypothesis
+  const expectedMetric = hypothesis.metric;
+  const expectedMetricType = hypothesis.metricType;
+  
+  // Standardize the metric names for comparison
+  const normalizedExpectedMetric = standardizeMetricName(expectedMetric);
+  
+  const normalizedSelectedMetrics = selectedMetrics.map(m => {
+    // Standardize the selected metrics
+    let normalized = standardizeMetricName(m);
+    
+    // Map some known variations
+    if (normalized.includes('mean return')) return 'mean return';
+    if (normalized.includes('median return')) return 'median return';
+    if (normalized.includes('mean gain')) return 'mean gain';
+    if (normalized.includes('mean loss')) return 'mean loss';
+    if (normalized.includes('positive')) return 'proportion of days with positive returns';
+    if (normalized.includes('negative')) return 'proportion of days with negative returns';
+    
+    return normalized;
+  });
+  
+  // Check if one of the selected metrics matches the expected one
+  const matchesExpectedMetric = normalizedSelectedMetrics.some(m => m === normalizedExpectedMetric);
+  
+  if (!matchesExpectedMetric) {
+    // The metric doesn't match the hypothesis
+    return {
+      isValid: false,
+      errorMessage: `Selected metrics don't match the hypothesis. Expected: ${expectedMetric}`,
+      metricType: expectedMetricType === 'numerical' ? MetricType.NUMERICAL : MetricType.CATEGORICAL
+    };
+  }
+  
+  // All good, the metrics match
+  return {
+    isValid: true,
+    metricType: expectedMetricType === 'numerical' ? MetricType.NUMERICAL : MetricType.CATEGORICAL
   };
 } 
